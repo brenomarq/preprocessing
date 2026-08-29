@@ -1,0 +1,6 @@
+.data
+valor:   .word 10
+
+.text
+main:
+    li $t0, 5   # comentario

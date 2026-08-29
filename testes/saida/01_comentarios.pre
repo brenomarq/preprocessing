@@ -1,0 +1,8 @@
+.data
+msg: .asciiz "Resultado # obtido"
+outra: .asciiz "# comeca com cerquilha"
+.text
+main:
+add $t0, $t1, $t2
+li $t3, 10
+sub $t4, $t0, $t3

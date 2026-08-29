@@ -1,0 +1,10 @@
+.data
+espacos: .asciiz "A     B"
+pontuacao: .asciiz "Resultado: , ; : ( ) # 1"
+vazia: .asciiz ""
+aspas: .asciiz "ele disse \"ola\" e saiu"
+tab_dentro: .asciiz "antes	depois"
+duas: .asciiz "primeira"
+.text
+main:
+li $v0, 4

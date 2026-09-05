@@ -2,7 +2,7 @@
 
 Etapa 1 do projeto de Linguagens Formais, Autômatos e Compiladores.
 
-Grupo: *(preencher)*
+Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
 O programa lê um arquivo `.asm` escrito em μ-Assembly (subconjunto do MIPS,
 sintaxe do MARS) e grava uma versão limpa em `.pre`, que será a entrada do
@@ -30,12 +30,12 @@ gravar nada.
 
 ## O que o pré-processador faz
 
-- Remove comentários, ou seja, tudo do `#` até o fim da linha (seção 2.2).
-- Remove linhas vazias e linhas que só têm espaços (2.3).
+- Remove comentários, ou seja, tudo do `#` até o fim da linha.
+- Remove linhas vazias e linhas que só têm espaços.
 - Troca tabulações por espaço, tira os espaços do início e do fim da linha e
-  reduz sequências de espaços a um só (2.4).
-- Aceita arquivos com `\n`, `\r\n` ou `\r` e grava a saída sempre com `\n` (2.5).
-- Preserva rótulos, diretivas e o conteúdo das strings (2.6, 2.7 e 2.8).
+  reduz sequências de espaços a um só.
+- Aceita arquivos com `\n`, `\r\n` ou `\r` e grava a saída sempre com `\n`.
+- Preserva rótulos, diretivas e o conteúdo das strings.
 
 O ponto que exige atenção é que o `#` e os espaços só têm significado especial
 **fora** das aspas. Em `msg: .asciiz "Resultado # obtido"` o `#` faz parte do

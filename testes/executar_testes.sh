@@ -1,15 +1,6 @@
 #!/bin/sh
-# ==========================================================================
-# executar_testes.sh - bateria de testes do pre-processador (macOS / Linux)
-#
-# Uso:  sh testes/executar_testes.sh      (a partir da pasta do projeto)
-#
-# Para cada arquivo testes/NN_nome.asm o script:
-#   1. executa  ./main.exe NN_nome.asm  testes/saida/NN_nome.pre
-#   2. compara o resultado com testes/NN_nome.esperado
-#   3. imprime OK ou FALHOU (mostrando as diferencas)
-# No final testa tambem os casos de erro (argumentos, arquivo inexistente).
-# ==========================================================================
+# Roda todos os casos de teste e compara com os resultados esperados.
+# Uso: sh testes/executar_testes.sh   (a partir da pasta do projeto)
 
 # Vai para a pasta do projeto (a pasta acima deste script).
 cd "$(dirname "$0")/.." || exit 1
@@ -22,21 +13,17 @@ total=0
 passou=0
 
 echo ""
-echo "=========================================="
-echo " Compilando"
-echo "=========================================="
+echo "Compilando..."
 gcc -Wall -Wextra -std=c99 main.c preprocessador.c -o main.exe || {
     echo "ERRO DE COMPILACAO"
     exit 1
 }
-echo "Compilado: $PROGRAMA"
+
 
 mkdir -p "$PASTA_SAIDA"
 
 echo ""
-echo "=========================================="
-echo " Casos de pre-processamento"
-echo "=========================================="
+echo "Casos de pre-processamento:"
 
 for entrada in "$PASTA_TESTES"/*.asm; do
     nome=$(basename "$entrada" .asm)
@@ -64,9 +51,7 @@ for entrada in "$PASTA_TESTES"/*.asm; do
 done
 
 echo ""
-echo "=========================================="
-echo " Casos de erro (devem terminar com falha)"
-echo "=========================================="
+echo "Casos de erro (o programa deve falhar):"
 
 verificar_erro() {
     descricao="$1"
@@ -87,9 +72,7 @@ verificar_erro "arquivo de entrada inexistente" nao_existe.asm "$PASTA_SAIDA/x.p
 verificar_erro "entrada igual a saida"        "$PASTA_TESTES/05_rotulos.asm" "$PASTA_TESTES/05_rotulos.asm"
 
 echo ""
-echo "=========================================="
-echo " Resultado: $passou de $total testes passaram"
-echo "=========================================="
+echo "$passou de $total testes passaram"
 echo ""
 
 [ "$passou" -eq "$total" ]

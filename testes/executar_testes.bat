@@ -1,9 +1,6 @@
 @echo off
-REM ==========================================================================
-REM executar_testes.bat - bateria de testes do pre-processador (Windows)
-REM
-REM Uso: na pasta do projeto, execute   testes\executar_testes.bat
-REM ==========================================================================
+REM Roda todos os casos de teste e compara com os resultados esperados.
+REM Uso: na pasta do projeto, execute  testes\executar_testes.bat
 setlocal enabledelayedexpansion
 
 cd /d "%~dp0.."
@@ -12,22 +9,17 @@ set TOTAL=0
 set PASSOU=0
 
 echo.
-echo ==========================================
-echo  Compilando
-echo ==========================================
+echo Compilando...
 gcc -Wall -Wextra -std=c99 main.c preprocessador.c -o main.exe
 if errorlevel 1 (
     echo ERRO DE COMPILACAO
     exit /b 1
 )
-echo Compilado: main.exe
 
 if not exist "testes\saida" mkdir "testes\saida"
 
 echo.
-echo ==========================================
-echo  Casos de pre-processamento
-echo ==========================================
+echo Casos de pre-processamento:
 
 for %%A in (testes\*.asm) do (
     set /a TOTAL+=1
@@ -46,9 +38,7 @@ for %%A in (testes\*.asm) do (
 )
 
 echo.
-echo ==========================================
-echo  Casos de erro ^(devem terminar com falha^)
-echo ==========================================
+echo Casos de erro ^(o programa deve falhar^):
 
 call :VerificaErro "sem argumentos"
 call :VerificaErro "apenas um argumento" testes\05_rotulos.asm
@@ -57,9 +47,7 @@ call :VerificaErro "entrada inexistente" nao_existe.asm testes\saida\x.pre
 call :VerificaErro "entrada igual a saida" testes\05_rotulos.asm testes\05_rotulos.asm
 
 echo.
-echo ==========================================
-echo  Resultado: %PASSOU% de %TOTAL% testes passaram
-echo ==========================================
+echo %PASSOU% de %TOTAL% testes passaram
 echo.
 exit /b 0
 

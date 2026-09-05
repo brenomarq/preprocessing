@@ -1,151 +1,101 @@
-/* ==========================================================================
+/*
  * preprocessador.c
- * --------------------------------------------------------------------------
- * Implementacao das funcoes de pre-processamento da linguagem u-Assembly.
  *
- * IDEIA CENTRAL DO MODULO
- * -----------------------
- * Praticamente todo o trabalho se resume a uma pergunta feita caractere a
- * caractere: "eu estou DENTRO ou FORA de uma string?".
+ * Funções de pré-processamento do código u-Assembly.
  *
- *      FORA da string  -> '#' inicia comentario, brancos sao normalizados
- *      DENTRO da string-> tudo e conteudo e deve ser copiado como esta
- *
- * Isso e, na pratica, um automato finito de dois estados - exatamente o
- * assunto da disciplina:
- *
- *                     +---- caractere qualquer ----+
- *                     |                            |
- *                     v            "               |
- *              ( FORA_STRING ) -------------> ( DENTRO_STRING )
- *                   ^  |                            |  ^
- *                   |  +-- '#' -> corta a linha     |  +-- \x -> copia par
- *                   +------------- " ---------------+
- *
- * Cada funcao abaixo percorre a linha implementando esse mesmo automato,
- * mudando apenas o que faz em cada estado.
- * ========================================================================== */
+ * Quase tudo aqui depende de saber se o caractere que estamos lendo está
+ * dentro ou fora de uma string, porque fora das aspas o '#' começa um
+ * comentário e os espaços podem ser normalizados, e dentro delas nada pode
+ * ser alterado. Por isso as funções que percorrem a linha usam sempre uma
+ * variável dentro_string para controlar isso.
+ */
 
-#include <stdlib.h>   /* malloc, realloc, free */
-#include <string.h>   /* memmove, strlen       */
+#include <stdlib.h>
+#include <string.h>
 
 #include "preprocessador.h"
 
-/* ==========================================================================
- * 1. UTILITARIOS DE CARACTERE
- * ========================================================================== */
-
-/* Espacos em branco horizontais que aparecem dentro de uma linha.
-   '\n' e '\r' nao entram na lista porque o leitor de linhas ja os retirou. */
-int pp_eh_branco(char c)
+int eh_espaco(char c)
 {
-    return (c == ' ' || c == '\t' || c == '\v' || c == '\f');
+    return c == ' ' || c == '\t' || c == '\v' || c == '\f';
 }
 
-/* ==========================================================================
- * 2. SECAO 2.2 DO ENUNCIADO - REMOCAO DE COMENTARIOS
- * --------------------------------------------------------------------------
- * Percorremos a linha da esquerda para a direita controlando o estado
- * "dentro de string". Ao encontrar '#' FORA de uma string, colocamos o
- * terminador '\0' naquela posicao: a linha simplesmente acaba ali.
- *
- * Exemplos:
- *   "add $t0, $t1, $t2   # soma"     ->  "add $t0, $t1, $t2   "
- *   "msg: .asciiz \"Valor # 1\""      ->  inalterada ('#' esta dentro da string)
- *   "# linha so de comentario"       ->  "" (vira linha vazia, some depois)
- * ========================================================================== */
-int pp_remover_comentario(char *linha)
+/*
+ * Seção 2.2 - remoção de comentários.
+ * Percorre a linha e, no primeiro '#' que estiver fora de uma string,
+ * coloca o '\0'. A linha simplesmente termina ali, sem precisar copiar nada.
+ */
+int remover_comentario(char *linha)
 {
     size_t i = 0;
     int dentro_string = 0;
 
-    if (linha == NULL) {
-        return 0;
-    }
-
     while (linha[i] != '\0') {
-
         if (dentro_string) {
-            /* Dentro da string: a contrabarra protege o proximo caractere,
-               entao "\"" nao fecha a string. Pulamos os dois de uma vez. */
-            if (linha[i] == PP_ESCAPE && linha[i + 1] != '\0') {
+            /* a contrabarra protege o próximo caractere, então \" não fecha
+               a string */
+            if (linha[i] == '\\' && linha[i + 1] != '\0') {
                 i += 2;
                 continue;
             }
-            if (linha[i] == PP_ASPAS) {
-                dentro_string = 0;   /* aspas de fechamento */
+            if (linha[i] == ASPAS) {
+                dentro_string = 0;
             }
         } else {
-            if (linha[i] == PP_ASPAS) {
-                dentro_string = 1;   /* aspas de abertura */
-            } else if (linha[i] == PP_CARACTERE_COMENTARIO) {
-                linha[i] = '\0';     /* corta o comentario aqui */
+            if (linha[i] == ASPAS) {
+                dentro_string = 1;
+            } else if (linha[i] == COMENTARIO) {
+                linha[i] = '\0';
                 return 1;
             }
         }
         i++;
     }
 
-    return 0;   /* nao havia comentario nesta linha */
+    return 0;
 }
 
-/* ==========================================================================
- * 3. SECOES 2.4 E 2.8 - NORMALIZACAO DE ESPACOS / PRESERVACAO DE STRINGS
- * --------------------------------------------------------------------------
- * Usamos a tecnica dos "dois indices" (two pointers), que reescreve a string
- * dentro dela mesma, sem precisar de memoria extra:
+/*
+ * Seções 2.4 e 2.8 - espaços e tabulações, sem mexer nas strings.
  *
- *      leitura -> posicao que estamos lendo
- *      escrita -> posicao onde vamos gravar (nunca passa de leitura)
+ * Reescrevemos a linha dentro dela mesma usando dois índices: leitura anda
+ * sempre à frente de escrita, então nunca sobrescrevemos nada que ainda
+ * precisamos ler.
  *
- * A variavel espaco_pendente e o truque que resolve as tres exigencias de
- * uma vez so:
- *   - marcamos que "houve branco" em vez de copiar o branco na hora;
- *   - o espaco so e gravado imediatamente antes do proximo caractere util;
- *   - logo, brancos no inicio nunca sao gravados (escrita ainda e 0),
- *     brancos no fim nunca sao gravados (nao vem caractere util depois) e
- *     sequencias de brancos viram um unico espaco.
- *
- * Exemplo:
- *   "    add\t\t $t0,   $t1  "   ->   "add $t0, $t1"
- *   "msg: .asciiz \"A     B\""    ->   "msg: .asciiz \"A     B\"" (string intacta)
- * ========================================================================== */
-void pp_normalizar_espacos(char *linha)
+ * O detalhe importante é a variável espaco_pendente. Em vez de copiar o
+ * branco na hora, só anotamos que ele apareceu; o espaço é gravado quando
+ * chega o próximo caractere útil. Com isso os brancos do começo não são
+ * gravados (nada foi escrito ainda), os do fim também não (não vem mais
+ * nada depois) e uma sequência de dez vira um espaço só.
+ */
+void normalizar_espacos(char *linha)
 {
     size_t leitura = 0;
     size_t escrita = 0;
     int dentro_string = 0;
     int espaco_pendente = 0;
 
-    if (linha == NULL) {
-        return;
-    }
-
     while (linha[leitura] != '\0') {
 
-        /* ---- ESTADO 1: DENTRO DE UMA STRING -> copia fiel ---------------- */
         if (dentro_string) {
             char atual = linha[leitura];
 
             linha[escrita++] = atual;
             leitura++;
 
-            /* Par escapado (\" , \\ , \n ...): copia o segundo caractere
-               tambem, sem deixar que ele mude o estado do automato. */
-            if (atual == PP_ESCAPE && linha[leitura] != '\0') {
+            /* copia o par escapado inteiro para o \" não ser confundido
+               com o fechamento da string */
+            if (atual == '\\' && linha[leitura] != '\0') {
                 linha[escrita++] = linha[leitura++];
                 continue;
             }
-            if (atual == PP_ASPAS) {
-                dentro_string = 0;   /* fechou a string */
+            if (atual == ASPAS) {
+                dentro_string = 0;
             }
             continue;
         }
 
-        /* ---- ESTADO 2: FORA DE STRING -> normaliza ----------------------- */
-        if (pp_eh_branco(linha[leitura])) {
-            /* So marca a pendencia se ja existe algo escrito; assim os
-               brancos do inicio da linha desaparecem naturalmente. */
+        if (eh_espaco(linha[leitura])) {
             if (escrita > 0) {
                 espaco_pendente = 1;
             }
@@ -153,73 +103,56 @@ void pp_normalizar_espacos(char *linha)
             continue;
         }
 
-        /* Chegou um caractere util: agora sim o espaco pendente vira UM espaco. */
         if (espaco_pendente) {
             linha[escrita++] = ' ';
             espaco_pendente = 0;
         }
 
-        if (linha[leitura] == PP_ASPAS) {
-            dentro_string = 1;       /* abriu uma string */
+        if (linha[leitura] == ASPAS) {
+            dentro_string = 1;
         }
 
         linha[escrita++] = linha[leitura++];
     }
 
-    linha[escrita] = '\0';   /* fecha a linha ja normalizada */
+    linha[escrita] = '\0';
 }
 
-/* ==========================================================================
- * 4. SECAO 2.3 - LINHA VAZIA
- * --------------------------------------------------------------------------
- * Chamada DEPOIS das duas etapas anteriores. Se sobrou algum caractere que
- * nao seja branco, a linha tem conteudo util e deve ser gravada.
- * ========================================================================== */
-int pp_esta_vazia(const char *linha)
+/* Seção 2.3. Chamada depois das outras, porque uma linha que só tinha
+   comentário chega aqui já vazia. */
+int linha_vazia(const char *linha)
 {
-    size_t i = 0;
+    size_t i;
 
-    if (linha == NULL) {
-        return 1;
-    }
-
-    while (linha[i] != '\0') {
-        if (!pp_eh_branco(linha[i])) {
-            return 0;   /* achou conteudo */
+    for (i = 0; linha[i] != '\0'; i++) {
+        if (!eh_espaco(linha[i])) {
+            return 0;
         }
-        i++;
     }
 
-    return 1;   /* percorreu tudo e so encontrou brancos */
+    return 1;
 }
 
-/* ==========================================================================
- * 5. DIAGNOSTICO - STRING ABERTA E NAO FECHADA
- * --------------------------------------------------------------------------
- * A secao 2.10 do enunciado proibe o pre-processador de acusar erro de
- * sintaxe, entao NAO interrompemos o programa. Apenas avisamos no console,
- * porque uma aspas esquecida costuma ser um erro real de digitacao e o aviso
- * poupa muito tempo de depuracao nas proximas etapas.
- * ========================================================================== */
-int pp_tem_string_aberta(const char *linha)
+/*
+ * Só para avisar o usuário. Não podemos tratar como erro porque a seção 2.10
+ * proíbe o pré-processador de validar sintaxe, mas uma aspas esquecida quase
+ * sempre é erro de digitação e o aviso ajuda a achar.
+ */
+int string_aberta(const char *linha)
 {
     size_t i = 0;
     int dentro_string = 0;
 
-    if (linha == NULL) {
-        return 0;
-    }
-
     while (linha[i] != '\0') {
         if (dentro_string) {
-            if (linha[i] == PP_ESCAPE && linha[i + 1] != '\0') {
+            if (linha[i] == '\\' && linha[i + 1] != '\0') {
                 i += 2;
                 continue;
             }
-            if (linha[i] == PP_ASPAS) {
+            if (linha[i] == ASPAS) {
                 dentro_string = 0;
             }
-        } else if (linha[i] == PP_ASPAS) {
+        } else if (linha[i] == ASPAS) {
             dentro_string = 1;
         }
         i++;
@@ -228,135 +161,90 @@ int pp_tem_string_aberta(const char *linha)
     return dentro_string;
 }
 
-/* ==========================================================================
- * 6. BOM (BYTE ORDER MARK)
- * --------------------------------------------------------------------------
- * O Bloco de Notas do Windows salva arquivos UTF-8 comecando com os bytes
- * EF BB BF. Eles sao invisiveis no editor, mas para o nosso programa fazem
- * parte da primeira linha. Retiramos deslocando o resto da string 3 bytes
- * para a esquerda.
- * ========================================================================== */
-void pp_remover_bom(char *linha)
+/* O Bloco de Notas salva arquivos UTF-8 começando com os bytes EF BB BF.
+   Eles não aparecem no editor, mas grudam na primeira linha e atrapalham. */
+void remover_bom(char *linha)
 {
-    const unsigned char *bytes;
+    unsigned char *b = (unsigned char *) linha;
 
-    if (linha == NULL) {
-        return;
-    }
-
-    bytes = (const unsigned char *) linha;
-
-    if (bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
-        /* +1 para levar junto o terminador '\0' */
+    if (b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) {
         memmove(linha, linha + 3, strlen(linha + 3) + 1);
     }
 }
 
-/* ==========================================================================
- * 7. PROCESSAMENTO DE UMA LINHA (ordem das etapas)
- * --------------------------------------------------------------------------
- * A ORDEM IMPORTA:
- *   1) remover comentario   - senao normalizariamos espacos de um texto que
- *                             sera jogado fora, e um "#" comentado poderia
- *                             confundir a etapa seguinte;
- *   2) avisar string aberta - depois do corte, para nao avisar por causa de
- *                             uma aspas que estava dentro de um comentario;
- *   3) normalizar espacos   - trabalha sobre a linha ja limpa;
- *   4) testar se ficou vazia- so faz sentido no final, pois uma linha com
- *                             apenas um comentario vira uma linha vazia.
- *
- * Retorna 1 quando a linha deve ser gravada na saida.
- * ========================================================================== */
-int pp_processar_linha(char *linha, PPEstatisticas *est, long numero_linha)
+/*
+ * A ordem das etapas importa: o comentário sai primeiro para não gastarmos
+ * tempo normalizando um texto que vai ser jogado fora, o aviso vem depois do
+ * corte para não acusar uma aspas que estava dentro do comentário, e o teste
+ * de linha vazia fica por último porque só aí a linha está do jeito final.
+ */
+int processar_linha(char *linha, Estatisticas *est, long numero)
 {
-    if (linha == NULL) {
+    if (remover_comentario(linha)) {
+        est->comentarios++;
+    }
+
+    if (string_aberta(linha)) {
+        est->avisos++;
+        fprintf(stderr, "Aviso: linha %ld tem uma string sem fechar.\n", numero);
+    }
+
+    normalizar_espacos(linha);
+
+    if (linha_vazia(linha)) {
+        est->removidas++;
         return 0;
     }
 
-    /* Etapa 1 - comentarios (secao 2.2) */
-    if (pp_remover_comentario(linha)) {
-        if (est != NULL) {
-            est->comentarios_removidos++;
-        }
-    }
-
-    /* Etapa 2 - aviso de string aberta (nao e erro, secao 2.10) */
-    if (pp_tem_string_aberta(linha)) {
-        if (est != NULL) {
-            est->avisos++;
-        }
-        fprintf(stderr,
-                "Aviso: linha %ld possui uma string sem aspas de fechamento.\n",
-                numero_linha);
-    }
-
-    /* Etapa 3 - espacos e tabulacoes (secoes 2.4 e 2.8) */
-    pp_normalizar_espacos(linha);
-
-    /* Etapa 4 - linha vazia (secao 2.3) */
-    if (pp_esta_vazia(linha)) {
-        if (est != NULL) {
-            est->linhas_removidas++;
-        }
-        return 0;   /* descartar */
-    }
-
-    return 1;       /* gravar */
+    return 1;
 }
 
-/* ==========================================================================
- * 8. SECAO 2.5 - LEITURA DE UMA LINHA COM QUEBRA NORMALIZADA
- * --------------------------------------------------------------------------
- * Os arquivos podem vir de tres mundos diferentes:
+/*
+ * Seção 2.5 - quebras de linha.
  *
- *      Unix / macOS moderno .... "\n"      (LF)
- *      Windows ................. "\r\n"    (CRLF)
- *      Mac OS classico ......... "\r"      (CR)
- *
- * Lemos caractere a caractere e tratamos os tres casos. O terminador nunca
- * entra na string devolvida: quem grava a saida decide qual usar
- * (PP_FIM_DE_LINHA), garantindo a uniformidade exigida pelo enunciado.
- *
- * O buffer comeca com PP_TAM_INICIAL_LINHA bytes e DOBRA de tamanho sempre
- * que enche, entao nao existe limite de comprimento de linha.
- * ========================================================================== */
-char *pp_ler_linha(FILE *entrada, int *status)
+ * O mesmo arquivo pode ter três terminadores diferentes: "\n" no Linux e no
+ * macOS, "\r\n" no Windows e "\r" sozinho no Mac antigo. Lemos byte a byte e
+ * paramos nos três casos, sem incluir o terminador na string devolvida. Quem
+ * grava a saída é que escolhe qual usar, e é assim que a saída fica uniforme.
+ */
+char *ler_linha(FILE *entrada, int *status)
 {
-    size_t capacidade = PP_TAM_INICIAL_LINHA;
+    size_t capacidade = TAM_INICIAL;
     size_t tamanho = 0;
     char *linha;
     int c = EOF;
 
-    *status = PP_OK;
+    *status = OK;
 
-    linha = (char *) malloc(capacidade);
+    linha = malloc(capacidade);
     if (linha == NULL) {
-        *status = PP_ERRO_MEMORIA;
+        *status = ERRO_MEMORIA;
         return NULL;
     }
 
     while ((c = fgetc(entrada)) != EOF) {
 
-        if (c == '\n') {            /* LF: fim de linha */
+        if (c == '\n') {
             break;
         }
 
-        if (c == '\r') {            /* CR: pode ser CRLF ou CR sozinho */
+        if (c == '\r') {
+            /* espia o próximo byte: se não for '\n', era um CR sozinho e
+               precisamos devolver o byte para não perdê-lo */
             int proximo = fgetc(entrada);
             if (proximo != '\n' && proximo != EOF) {
-                ungetc(proximo, entrada);   /* era CR sozinho: devolve o byte */
+                ungetc(proximo, entrada);
             }
             break;
         }
 
-        /* Espaco para o caractere + o '\0' final? Se nao, dobra o buffer. */
-        if (tamanho + 1 >= capacidade) {
+        if (tamanho + 1 >= capacidade) {   /* o +1 reserva espaço para o '\0' */
             char *novo;
             capacidade *= 2;
-            novo = (char *) realloc(linha, capacidade);
+            novo = realloc(linha, capacidade);
             if (novo == NULL) {
                 free(linha);
-                *status = PP_ERRO_MEMORIA;
+                *status = ERRO_MEMORIA;
                 return NULL;
             }
             linha = novo;
@@ -365,8 +253,8 @@ char *pp_ler_linha(FILE *entrada, int *status)
         linha[tamanho++] = (char) c;
     }
 
-    /* Fim do arquivo sem nenhum caractere lido: nao ha mais linhas.
-       (Isso evita inventar uma linha vazia quando o arquivo termina com "\n".) */
+    /* chegou ao fim sem ler nada: acabou o arquivo de verdade. Sem esse
+       teste, um arquivo terminado em "\n" geraria uma linha vazia a mais. */
     if (c == EOF && tamanho == 0) {
         free(linha);
         return NULL;
@@ -376,88 +264,71 @@ char *pp_ler_linha(FILE *entrada, int *status)
     return linha;
 }
 
-/* ==========================================================================
- * 9. LACO PRINCIPAL - ARQUIVO INTEIRO
- * ========================================================================== */
-int pp_processar_arquivo(FILE *entrada, FILE *saida, PPEstatisticas *est)
+int processar_arquivo(FILE *entrada, FILE *saida, Estatisticas *est)
 {
     char *linha;
-    int status = PP_OK;
-    long numero_linha = 0;
+    int status = OK;
+    long numero = 0;
 
-    pp_zerar_estatisticas(est);
+    zerar_estatisticas(est);
 
-    while ((linha = pp_ler_linha(entrada, &status)) != NULL) {
+    while ((linha = ler_linha(entrada, &status)) != NULL) {
+        numero++;
+        est->lidas++;
 
-        numero_linha++;
-        if (est != NULL) {
-            est->linhas_lidas++;
+        if (numero == 1) {
+            remover_bom(linha);
         }
 
-        /* O BOM so pode aparecer no comeco do arquivo. */
-        if (numero_linha == 1) {
-            pp_remover_bom(linha);
+        if (processar_linha(linha, est, numero)) {
+            fprintf(saida, "%s%s", linha, FIM_DE_LINHA);
+            est->gravadas++;
         }
 
-        if (pp_processar_linha(linha, est, numero_linha)) {
-            fprintf(saida, "%s%s", linha, PP_FIM_DE_LINHA);
-            if (est != NULL) {
-                est->linhas_gravadas++;
-            }
-        }
-
-        free(linha);   /* pp_ler_linha alocou; quem chama libera */
+        free(linha);
     }
 
-    if (status != PP_OK) {
-        return status;              /* falta de memoria */
+    if (status != OK) {
+        return status;
     }
     if (ferror(entrada)) {
-        return PP_ERRO_LEITURA;     /* disco/permissao durante a leitura */
+        return ERRO_LEITURA;
     }
     if (ferror(saida)) {
-        return PP_ERRO_ESCRITA;     /* disco cheio, por exemplo */
+        return ERRO_ESCRITA;
     }
 
-    return PP_OK;
+    return OK;
 }
 
-/* ==========================================================================
- * 10. APOIO
- * ========================================================================== */
-void pp_zerar_estatisticas(PPEstatisticas *est)
+void zerar_estatisticas(Estatisticas *est)
 {
-    if (est == NULL) {
-        return;
-    }
-    est->linhas_lidas = 0;
-    est->linhas_gravadas = 0;
-    est->linhas_removidas = 0;
-    est->comentarios_removidos = 0;
+    est->lidas = 0;
+    est->gravadas = 0;
+    est->removidas = 0;
+    est->comentarios = 0;
     est->avisos = 0;
 }
 
-/* Mensagens sem acentuacao de proposito: o console do Windows (cmd.exe) usa
-   por padrao uma pagina de codigo que exibe acentos UTF-8 como lixo. */
-const char *pp_mensagem_erro(int codigo)
+/* Mensagens sem acento de propósito: o console do Windows costuma exibir
+   acentuação UTF-8 como lixo. */
+const char *mensagem_erro(int codigo)
 {
     switch (codigo) {
-        case PP_OK:
-            return "Nenhum erro.";
-        case PP_ERRO_ARGUMENTOS:
+        case ERRO_ARGUMENTOS:
             return "Quantidade de argumentos invalida.";
-        case PP_ERRO_ABRIR_ENTRADA:
+        case ERRO_ABRIR_ENTRADA:
             return "Nao foi possivel abrir o arquivo de entrada.";
-        case PP_ERRO_ABRIR_SAIDA:
+        case ERRO_ABRIR_SAIDA:
             return "Nao foi possivel criar o arquivo de saida.";
-        case PP_ERRO_MESMO_ARQUIVO:
+        case ERRO_MESMO_ARQUIVO:
             return "O arquivo de saida nao pode ser o mesmo de entrada.";
-        case PP_ERRO_LEITURA:
+        case ERRO_LEITURA:
             return "Falha ao ler o arquivo de entrada.";
-        case PP_ERRO_ESCRITA:
+        case ERRO_ESCRITA:
             return "Falha ao gravar o arquivo de saida.";
-        case PP_ERRO_MEMORIA:
-            return "Memoria insuficiente para processar o arquivo.";
+        case ERRO_MEMORIA:
+            return "Memoria insuficiente.";
         default:
             return "Erro desconhecido.";
     }

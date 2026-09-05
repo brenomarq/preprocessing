@@ -1,29 +1,23 @@
 /*
- * preprocessador.h
- *
- * Linguagens Formais, Automatos e Compiladores
- * Etapa 1 - Pre-processador da linguagem u-Assembly
- *
- * Grupo: (preencher com os nomes)
- *
- * Constantes, tipos e prototipos do modulo de pre-processamento.
- * A implementacao esta em preprocessador.c.
- */
+ preprocessador.h
+
+ Constantes, tipos e protótipos do módulo de pré-processamento.
+ A implementacao esta em preprocessador.c.
+*/
 
 #ifndef PREPROCESSADOR_H
+
 #define PREPROCESSADOR_H
 
-#include <stdio.h>   /* por causa do FILE usado nos prototipos */
+#include <stdio.h>   /* por causa do FILE usado nos protótipos */
 
 #define COMENTARIO '#'
 #define ASPAS      '"'
 
-/* Quebra de linha da saída. O enunciado (2.5) pede uma representação
-   uniforme; escolhemos "\n". Para gerar CRLF é só mudar aqui. */
+/* Quebra de linha da saída. */
 #define FIM_DE_LINHA "\n"
 
-/* Tamanho inicial do buffer de uma linha. Ele dobra sozinho quando enche,
-   então não existe limite de comprimento. */
+/* Tamanho inicial do buffer de uma linha que dobra sozinho ao encher. */
 #define TAM_INICIAL 128
 
 /* Códigos de retorno das funções que podem falhar */

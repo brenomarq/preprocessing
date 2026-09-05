@@ -1,17 +1,17 @@
 /*
- * main.c
- *
- * Linguagens Formais, Automatos e Compiladores
- * Etapa 1 - Pre-processador da linguagem u-Assembly
- *
- * Grupo: (preencher com os nomes)
- *
- * Compilar:  gcc main.c preprocessador.c -o main.exe
- * Executar:  ./main.exe entrada.asm saida.pre
- *
- * Este arquivo cuida só dos argumentos, dos arquivos e das mensagens.
- * A limpeza do código está toda em preprocessador.c.
- */
+ main.c
+
+ Linguagens Formais, Autômatos e Compiladores
+ Etapa 1 - Pre-processador da linguagem u-Assembly
+
+ Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
+
+ Compilação:  gcc main.c preprocessador.c -o main.exe
+ Execução:  ./main.exe entrada.asm saida.pre
+
+ Este arquivo cuida apenas dos argumentos, dos arquivos e das mensagens.
+ A limpeza do código está centralizada no arquivo preprocessador.c.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,14 +19,12 @@
 
 #include "preprocessador.h"
 
-static void exibir_uso(const char *programa)
-{
+static void exibir_uso(const char *programa) {
     fprintf(stderr, "\nUso: %s <arquivo_entrada.asm> <arquivo_saida.pre>\n", programa);
     fprintf(stderr, "Exemplo: %s teste.asm teste.pre\n\n", programa);
 }
 
-static void exibir_resumo(const Estatisticas *est)
-{
+static void exibir_resumo(const Estatisticas *est) {
     printf("Pre-processamento concluido.\n");
     printf("  Linhas lidas ........: %ld\n", est->lidas);
     printf("  Linhas gravadas .....: %ld\n", est->gravadas);
@@ -34,8 +32,7 @@ static void exibir_resumo(const Estatisticas *est)
     printf("  Comentarios removidos: %ld\n", est->comentarios);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     FILE *entrada;
     FILE *saida;
     Estatisticas est;

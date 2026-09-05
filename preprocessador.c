@@ -11,7 +11,6 @@
  */
 
 #include <stdlib.h>
-#include <string.h>
 
 #include "preprocessador.h"
 
@@ -134,59 +133,15 @@ int linha_vazia(const char *linha)
 }
 
 /*
- * Só para avisar o usuário. Não podemos tratar como erro porque a seção 2.10
- * proíbe o pré-processador de validar sintaxe, mas uma aspas esquecida quase
- * sempre é erro de digitação e o aviso ajuda a achar.
- */
-int string_aberta(const char *linha)
-{
-    size_t i = 0;
-    int dentro_string = 0;
-
-    while (linha[i] != '\0') {
-        if (dentro_string) {
-            if (linha[i] == '\\' && linha[i + 1] != '\0') {
-                i += 2;
-                continue;
-            }
-            if (linha[i] == ASPAS) {
-                dentro_string = 0;
-            }
-        } else if (linha[i] == ASPAS) {
-            dentro_string = 1;
-        }
-        i++;
-    }
-
-    return dentro_string;
-}
-
-/* O Bloco de Notas salva arquivos UTF-8 começando com os bytes EF BB BF.
-   Eles não aparecem no editor, mas grudam na primeira linha e atrapalham. */
-void remover_bom(char *linha)
-{
-    unsigned char *b = (unsigned char *) linha;
-
-    if (b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) {
-        memmove(linha, linha + 3, strlen(linha + 3) + 1);
-    }
-}
-
-/*
  * A ordem das etapas importa: o comentário sai primeiro para não gastarmos
- * tempo normalizando um texto que vai ser jogado fora, o aviso vem depois do
- * corte para não acusar uma aspas que estava dentro do comentário, e o teste
- * de linha vazia fica por último porque só aí a linha está do jeito final.
+ * tempo normalizando um texto que vai ser jogado fora, e o teste de linha
+ * vazia fica por último porque só aí a linha está do jeito final. Uma linha
+ * que só tinha comentário, por exemplo, só fica vazia depois das duas etapas.
  */
-int processar_linha(char *linha, Estatisticas *est, long numero)
+int processar_linha(char *linha, Estatisticas *est)
 {
     if (remover_comentario(linha)) {
         est->comentarios++;
-    }
-
-    if (string_aberta(linha)) {
-        est->avisos++;
-        fprintf(stderr, "Aviso: linha %ld tem uma string sem fechar.\n", numero);
     }
 
     normalizar_espacos(linha);
@@ -268,19 +223,13 @@ int processar_arquivo(FILE *entrada, FILE *saida, Estatisticas *est)
 {
     char *linha;
     int status = OK;
-    long numero = 0;
 
     zerar_estatisticas(est);
 
     while ((linha = ler_linha(entrada, &status)) != NULL) {
-        numero++;
         est->lidas++;
 
-        if (numero == 1) {
-            remover_bom(linha);
-        }
-
-        if (processar_linha(linha, est, numero)) {
+        if (processar_linha(linha, est)) {
             fprintf(saida, "%s%s", linha, FIM_DE_LINHA);
             est->gravadas++;
         }
@@ -307,7 +256,6 @@ void zerar_estatisticas(Estatisticas *est)
     est->gravadas = 0;
     est->removidas = 0;
     est->comentarios = 0;
-    est->avisos = 0;
 }
 
 /* Mensagens sem acento de propósito: o console do Windows costuma exibir

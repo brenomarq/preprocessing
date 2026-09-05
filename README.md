@@ -116,5 +116,6 @@ Não há limite de tamanho de linha: o buffer começa com 128 bytes e dobra com
 O programa recusa executar quando o arquivo de entrada e o de saída têm o mesmo
 nome, senão o código-fonte seria apagado antes de ser lido.
 
-Se uma string ficar sem fechar, o programa mostra um aviso e continua. Não pode
-ser tratado como erro porque a seção 2.10 não deixa esta etapa validar sintaxe.
+Os espaços em volta das vírgulas não são mexidos: `sub $t3,$t0,$t1` continua
+assim mesmo. O enunciado pede para normalizar espaços, não para inserir os que
+o programador não escreveu.

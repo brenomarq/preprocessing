@@ -38,7 +38,6 @@ typedef struct {
     long gravadas;
     long removidas;
     long comentarios;
-    long avisos;
 } Estatisticas;
 
 /* Verdadeiro para espaço, tabulação e afins */
@@ -55,15 +54,9 @@ void normalizar_espacos(char *linha);
 /* Verdadeiro se a linha não tem nenhum caractere útil (seção 2.3) */
 int linha_vazia(const char *linha);
 
-/* Verdadeiro se a linha termina com uma string que ficou sem fechar */
-int string_aberta(const char *linha);
-
-/* Tira o BOM do começo do arquivo, se existir */
-void remover_bom(char *linha);
-
 /* Aplica as etapas de limpeza em uma linha. Retorna 1 se ela deve ser
    gravada na saída. */
-int processar_linha(char *linha, Estatisticas *est, long numero);
+int processar_linha(char *linha, Estatisticas *est);
 
 /* Lê uma linha aceitando "\n", "\r\n" e "\r" (seção 2.5). Devolve memória
    alocada com malloc, ou NULL no fim do arquivo. */

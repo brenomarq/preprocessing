@@ -9,7 +9,7 @@
 
 #define PREPROCESSADOR_H
 
-#include <stdio.h>   /* por causa do FILE usado nos protótipos */
+#include <stdio.h>
 
 #define COMENTARIO '#'
 #define ASPAS      '"'
@@ -32,7 +32,7 @@ enum {
     ERRO_MEMORIA
 };
 
-/* Contadores usados só para mostrar um resumo no final */
+/* Contadores usados para mostrar um resumo estatístico no final */
 typedef struct {
     long lidas;
     long gravadas;
@@ -40,25 +40,25 @@ typedef struct {
     long comentarios;
 } Estatisticas;
 
-/* Verdadeiro para espaço, tabulação e afins */
+/* Retorna verdadeiro para espaço, tabulação e afins */
 int eh_espaco(char c);
 
-/* Corta a linha no primeiro '#' que estiver fora de uma string (seção 2.2).
+/* Corta a linha no primeiro '#' que estiver fora de uma string.
    Retorna 1 se removeu algum comentário. */
 int remover_comentario(char *linha);
 
 /* Tira os espaços das pontas e reduz os do meio a um só, sem mexer no que
-   está dentro das aspas (seções 2.4 e 2.8) */
+   está dentro das aspas. */
 void normalizar_espacos(char *linha);
 
-/* Verdadeiro se a linha não tem nenhum caractere útil (seção 2.3) */
+/* Retorna verdadeiro se a linha não tem nenhum caractere útil. */
 int linha_vazia(const char *linha);
 
 /* Aplica as etapas de limpeza em uma linha. Retorna 1 se ela deve ser
    gravada na saída. */
 int processar_linha(char *linha, Estatisticas *est);
 
-/* Lê uma linha aceitando "\n", "\r\n" e "\r" (seção 2.5). Devolve memória
+/* Lê uma linha aceitando "\n", "\r\n" e "\r". Devolve memória
    alocada com malloc, ou NULL no fim do arquivo. */
 char *ler_linha(FILE *entrada, int *status);
 

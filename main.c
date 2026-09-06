@@ -44,8 +44,9 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    /* Se os dois nomes forem iguais, abrir a saída em modo escrita apagaria o
-       arquivo de entrada antes de conseguirmos ler qualquer coisa. */
+    /* Se o usuário passar o mesmo nome para entrada e saída, o programa 
+       não vai funcionar. O arquivo de entrada seria apagado antes do programa
+       ler alguma coisa. */
     if (strcmp(argv[1], argv[2]) == 0) {
         fprintf(stderr, "Erro: %s\n", mensagem_erro(ERRO_MESMO_ARQUIVO));
         return EXIT_FAILURE;

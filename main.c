@@ -2,7 +2,7 @@
  main.c
 
  Linguagens Formais, Autômatos e Compiladores
- Etapa 1 - Pre-processador da linguagem u-Assembly
+ Etapa 1 - Pré-processador da linguagem u-Assembly
 
  Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
@@ -44,16 +44,14 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    /* Se o usuário passar o mesmo nome para entrada e saída, o programa 
-       não vai funcionar. O arquivo de entrada seria apagado antes do programa
-       ler alguma coisa. */
+    // Retorna um erro, caso o usuário passe o mesmo nome para entrada e saída.
     if (strcmp(argv[1], argv[2]) == 0) {
         fprintf(stderr, "Erro: %s\n", mensagem_erro(ERRO_MESMO_ARQUIVO));
         return EXIT_FAILURE;
     }
 
-    /* Modo binário porque no Windows o modo texto converteria as quebras de
-       linha sozinho, e quem trata isso é a função ler_linha(). */
+    /* Modo binário para o Windows, para evitar que o modo texto converta as quebras de linha sozinho. 
+       A função ler_linha() é responsável por tratar isso. */
     entrada = fopen(argv[1], "rb");
     if (entrada == NULL) {
         fprintf(stderr, "Erro: %s (%s)\n", mensagem_erro(ERRO_ABRIR_ENTRADA), argv[1]);
@@ -71,14 +69,14 @@ int main(int argc, char *argv[]) {
 
     fclose(entrada);
 
-    /* o fclose da saída também pode falhar, se ainda tiver dados no buffer */
+    // O fclose da saída pode falhar, caso ainda tenha dados no buffer.
     if (fclose(saida) != 0 && resultado == OK) {
         resultado = ERRO_ESCRITA;
     }
 
     if (resultado != OK) {
         fprintf(stderr, "Erro: %s\n", mensagem_erro(resultado));
-        remove(argv[2]);   /* não deixa um .pre pela metade no disco */
+        remove(argv[2]);
         return EXIT_FAILURE;
     }
 

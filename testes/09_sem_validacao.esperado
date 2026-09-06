@@ -1,8 +1,0 @@
-.text
-main:
-add $t0, $t1
-add $t0, $t1, $t99
-li $t0, 3.5
-xyz $t0
-lw $t0, 4($t1)
-li $t1, -5

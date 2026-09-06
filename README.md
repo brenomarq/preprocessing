@@ -26,7 +26,7 @@ gravar nada.
 - `main.c` — argumentos da linha de comando, abertura dos arquivos e mensagens.
 - `preprocessador.c` — as funções de limpeza do código.
 - `preprocessador.h` — constantes, tipos e protótipos.
-- `testes/` — arquivos de teste e os resultados esperados.
+- `testes/` — arquivos `.asm` usados para testar o programa.
 
 ## O que o pré-processador faz
 
@@ -83,25 +83,31 @@ add $t2, $t0, $t1
 
 ## Testes
 
-Cada arquivo `.asm` da pasta `testes` tem um `.esperado` correspondente com o
-resultado correto. Para rodar todos de uma vez:
+A pasta `testes` tem dez arquivos `.asm`, cada um exercitando uma parte do
+enunciado. Os casos cobrem comentários (01), strings (02), espaços e
+tabulações (03), linhas vazias (04) e rótulos (05), que são as cinco
+categorias pedidas. O 06 é o exemplo do enunciado, o 07 e o 08 têm quebra de
+linha do Windows e do Mac antigo, o 09 tem código sintaticamente errado que
+deve passar sem reclamação e o 10 é um arquivo vazio.
+
+Para rodar o programa em todos eles de uma vez, no macOS ou Linux:
 
 ```
-testes\executar_testes.bat        (Windows)
-sh testes/executar_testes.sh      (macOS e Linux)
+make testes
 ```
 
-O script compila, roda cada caso e compara a saída com o esperado. Também
-testa se o programa realmente falha quando recebe argumentos errados ou um
-arquivo inexistente.
+As saídas ficam em `testes/saida`, uma para cada entrada, e a conferência é
+feita comparando os dois arquivos. No Windows dá para rodar um por vez:
 
-Os casos cobrem comentários (01), strings (02), espaços e tabulações (03),
-linhas vazias (04) e rótulos (05). O 06 é o exemplo do enunciado, o 07 e o 08
-são arquivos com quebra de linha do Windows e do Mac antigo, o 09 tem código
-sintaticamente errado que deve passar sem reclamação e o 10 é um arquivo vazio.
+```
+main.exe testes\01_comentarios.asm testes\saida\01_comentarios.pre
+```
 
-Para acrescentar um caso, basta criar `11_nome.asm` e `11_nome.esperado`; o
-script encontra sozinho.
+Para acrescentar um caso, basta criar um `.asm` novo na pasta; o `make testes`
+encontra sozinho.
+
+Os outros atalhos são `make` para compilar e `make limpar` para apagar o
+executável e a pasta de saídas.
 
 ## Observações sobre a implementação
 

@@ -4,9 +4,7 @@ Etapa 1 do projeto de Linguagens Formais, Autômatos e Compiladores.
 
 Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
-O programa lê um arquivo `.asm` escrito em μ-Assembly (subconjunto do MIPS,
-sintaxe do MARS) e grava uma versão limpa em `.pre`, que será a entrada do
-analisador léxico na próxima etapa.
+O programa lê um arquivo `.asm` escrito em μ-Assembly e grava uma versão limpa em `.pre`.
 
 ## Compilação e execução
 
@@ -37,9 +35,8 @@ gravar nada.
 - Aceita arquivos com `\n`, `\r\n` ou `\r` e grava a saída sempre com `\n`.
 - Preserva rótulos, diretivas e o conteúdo das strings.
 
-O ponto que exige atenção é que o `#` e os espaços só têm significado especial
-**fora** das aspas. Em `msg: .asciiz "Resultado # obtido"` o `#` faz parte do
-texto e continua lá.
+O ponto importante é que `#` e os espaços só tem significado real **fora** das
+aspas. Então o que estiver dentro de uma string é preservado.
 
 ## O que ele não faz
 
@@ -120,8 +117,7 @@ Não há limite de tamanho de linha: o buffer começa com 128 bytes e dobra com
 `realloc()` sempre que enche.
 
 O programa recusa executar quando o arquivo de entrada e o de saída têm o mesmo
-nome, senão o código-fonte seria apagado antes de ser lido.
+nome, caso contrário, o código-fonte seria apagado antes de ser lido.
 
 Os espaços em volta das vírgulas não são mexidos: `sub $t3,$t0,$t1` continua
-assim mesmo. O enunciado pede para normalizar espaços, não para inserir os que
-o programador não escreveu.
+assim mesmo.

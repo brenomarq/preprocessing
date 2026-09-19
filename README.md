@@ -1,123 +1,165 @@
-# Pré-processador μ-Assembly
+# Analisador léxico μ-Assembly
 
-Etapa 1 do projeto de Linguagens Formais, Autômatos e Compiladores.
+Etapas 1 e 2 do projeto de Linguagens Formais, Autômatos e Compiladores.
 
 Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
-O programa lê um arquivo `.asm` escrito em μ-Assembly e grava uma versão limpa em `.pre`.
+O programa lê um arquivo `.asm` escrito em μ-Assembly, faz o pré-processamento
+e em seguida a análise léxica. No fim ficam quatro arquivos: o código
+normalizado (`.pre`), os tokens (`.lex`), a tabela de símbolos (`.ts`) e os
+erros léxicos (`.err`).
 
 ## Compilação e execução
 
 ```
-gcc main.c preprocessador.c -o main.exe
-main.exe teste.asm teste.pre
+gcc main.c preprocessador.c lexico.c -o main.exe
+main.exe teste.asm teste.lex
 ```
 
-O `preprocessador.h` não precisa ir no comando, porque é incluído pelos `.c`.
+Os arquivos `.h` não precisam ir no comando, porque são incluídos pelos `.c`.
 
-São exigidos exatamente dois argumentos. Se faltar algum, se sobrar, ou se um
-dos arquivos não puder ser aberto, o programa mostra o erro e encerra sem
-gravar nada.
+Com dois nomes, o `.pre`, o `.ts` e o `.err` recebem o nome do `.lex` trocando
+só a extensão: o exemplo acima gera `teste.pre`, `teste.lex`, `teste.ts` e
+`teste.err`. Também dá para escolher o nome do `.pre`:
+
+```
+main.exe teste.asm saida.pre teste.lex
+```
+
+Se a quantidade de argumentos estiver errada, se algum arquivo não puder ser
+aberto ou se dois arquivos tiverem o mesmo nome, o programa mostra o erro e
+encerra. Os erros léxicos não interrompem a execução: eles vão para o `.err`.
 
 ## Arquivos
 
-- `main.c` — argumentos da linha de comando, abertura dos arquivos e mensagens.
-- `preprocessador.c` — as funções de limpeza do código.
-- `preprocessador.h` — constantes, tipos e protótipos.
-- `testes/` — arquivos `.asm` usados para testar o programa.
+- `main.c` — argumentos, abertura dos arquivos e a ordem das etapas.
+- `preprocessador.c` e `preprocessador.h` — etapa 1.
+- `lexico.c` e `lexico.h` — etapa 2.
+- `docs/afd.dot` e `docs/afd.png` — o diagrama do AFD.
+- `docs/lexico.md` — explicação detalhada do código do analisador léxico.
+- `testes/` — arquivos `.asm` das duas etapas.
 
-## O que o pré-processador faz
+## Pré-processamento
 
-- Remove comentários, ou seja, tudo do `#` até o fim da linha.
-- Remove linhas vazias e linhas que só têm espaços.
-- Troca tabulações por espaço, tira os espaços do início e do fim da linha e
-  reduz sequências de espaços a um só.
-- Aceita arquivos com `\n`, `\r\n` ou `\r` e grava a saída sempre com `\n`.
-- Preserva rótulos, diretivas e o conteúdo das strings.
+É a etapa 1, feita pela função `PreProcessamento()`. Ela remove comentários,
+linhas vazias e espaços desnecessários, troca tabulações por espaço, aceita
+arquivos com quebra de linha de qualquer sistema e grava tudo com `\n`. O `#` e
+os espaços só são mexidos fora das aspas, então o conteúdo das strings é
+preservado. Nenhuma validação é feita nessa etapa.
 
-O ponto importante é que `#` e os espaços só tem significado real **fora** das
-aspas. Então o que estiver dentro de uma string é preservado.
+## Análise léxica
 
-## O que ele não faz
+É a etapa 2, feita pela função `AnaliseLexica()`. Ela lê o `.pre` caractere por
+caractere usando um autômato finito determinístico (o diagrama está em
+`docs/afd.png`), agrupa os caracteres em lexemas e classifica cada um.
 
-Nada de análise. Conforme a seção 2.10 do enunciado, esta etapa não reconhece
-tokens, não valida sintaxe, não confere a quantidade de operandos nem os nomes
-dos registradores, não monta tabela de símbolos e não calcula endereços.
+### Tokens reconhecidos
 
-Por isso `add $t0, $t1` (falta um operando) e `add $t0, $t1, $t99` (registrador
-que não existe) passam sem erro. Quem reclama disso são as etapas seguintes.
+| Categoria | Exemplos de lexema | Token |
+|---|---|---|
+| Diretivas | `.data`, `.word`, `.asciiz` | `DIR_DATA`, `DIR_WORD`, `DIR_ASCIIZ` |
+| Instruções | `li`, `add`, `beq`, `syscall` | `INS_LI`, `INS_ADD`, `INS_BEQ`, `INS_SYSCALL` |
+| Identificadores | `main`, `laco`, `_fim` | `ID` |
+| Registradores | `$t0`, `$sp`, `$31` | `REG` |
+| Números | `10`, `-4`, `0xFF`, `-0x20` | `NUM_INT` |
+| Cadeias | `"Resultado: "` | `STRING` |
+| Símbolos | `,` `:` `(` `)` | `SMB_COM`, `SMB_COL`, `SMB_OPA`, `SMB_CPA` |
+| Fim do arquivo | | `TK_EOF` |
 
-## Exemplo
+São 10 diretivas, 36 instruções e os registradores `$zero`, `$v0`–`$v1`,
+`$a0`–`$a3`, `$t0`–`$t9`, `$s0`–`$s7`, `$k0`–`$k1`, `$gp`, `$sp`, `$fp`, `$ra`
+e `$0`–`$31`. Instruções, diretivas e registradores são reconhecidos com
+maiúsculas ou minúsculas (`ADD` é `INS_ADD`).
 
-Entrada:
+### Tabela de símbolos
+
+Começa com todas as diretivas, instruções e registradores, com linha e coluna
+zeradas. Quando um deles aparece pela primeira vez no programa, a posição é
+preenchida. Os identificadores entram na tabela na primeira vez que aparecem e
+diferenciam maiúsculas de minúsculas, então `inicio` e `Inicio` são símbolos
+diferentes. Números, strings e símbolos de pontuação não entram.
+
+### Erros léxicos
+
+| Erro | Exemplo |
+|---|---|
+| `ERRO_CARACTERE_INVALIDO` | `@`, ou um `-` que não vem colado a um número |
+| `ERRO_IDENTIFICADOR_MALFORMADO` | `2valor`, `soma-total`, `inicio@` |
+| `ERRO_NUMERO_MALFORMADO` | `0xG1`, `0x`, `12.5` |
+| `ERRO_DIRETIVA_INVALIDA` | `.dados` |
+| `ERRO_REGISTRADOR_INVALIDO` | `$t10`, `$32`, `$x1` |
+| `ERRO_STRING_NAO_FECHADA` | `"Mensagem` sem aspas até o fim da linha |
+| `ERRO_STRING_NAO_FECHADA_EOF` | o mesmo, mas chegando ao fim do arquivo |
+| `ERRO_ESCAPE_INVALIDO` | `\q` dentro de uma string |
+
+Um lexema com erro não vira token. O erro é registrado e a análise continua a
+partir do próximo delimitador, para que o `.err` tenha todos os erros do
+arquivo, e não só o primeiro.
+
+### Exemplo
+
+Para a entrada
 
 ```
-# Exemplo de programa
-
-.data
-
-msg:    .asciiz "Resultado # obtido"   # mensagem
-
 .text
 main:
-        li      $t0, 5
-
-        li      $t1, 10      # segundo número
-        add     $t2, $t0, $t1
+    li $v0, 10
+    syscall
 ```
 
-Saída:
+o `.lex` fica
 
 ```
-.data
-msg: .asciiz "Resultado # obtido"
-.text
-main:
-li $t0, 5
-li $t1, 10
-add $t2, $t0, $t1
+<DIR_TEXT, .text> 1 1
+<ID, main> 2 1
+<SMB_COL, :> 2 5
+<INS_LI, li> 3 1
+<REG, $v0> 3 4
+<SMB_COM, ,> 3 7
+<NUM_INT, 10> 3 9
+<INS_SYSCALL, syscall> 4 1
+<TK_EOF, EOF> 5 1
 ```
+
+o `.ts` começa com `LEXEMA,CATEGORIA,LINHA,COLUNA` e tem uma linha por
+símbolo, como `main,identificador/rótulo,2,1`, e o `.err` contém
+`Nenhum erro léxico encontrado.`
 
 ## Testes
 
-A pasta `testes` tem dez arquivos `.asm`, cada um exercitando uma parte do
-enunciado. Os casos cobrem comentários (01), strings (02), espaços e
-tabulações (03), linhas vazias (04) e rótulos (05), que são as cinco
-categorias pedidas. O 06 é o exemplo do enunciado, o 07 e o 08 têm quebra de
-linha do Windows e do Mac antigo, o 09 tem código sintaticamente errado que
-deve passar sem reclamação e o 10 é um arquivo vazio.
+A pasta `testes/lexico` tem os casos pedidos no enunciado:
 
-Para rodar o programa em todos eles de uma vez, no macOS ou Linux:
+- `correto_1`, `correto_2` e `correto_3` — programas sem nenhum erro léxico;
+- `erro_1`, `erro_2` e `erro_3` — programas com erros de todos os tipos;
+- `comentarios`, `strings`, `numeros` e `memoria` — um para cada assunto
+  (`memoria` usa o formato `deslocamento(registrador)`).
+
+A pasta `testes/preprocessamento` tem os dez casos da etapa 1. Para rodar
+todos, no macOS ou Linux:
 
 ```
 make testes
 ```
 
-As saídas ficam em `testes/saida`, uma para cada entrada, e a conferência é
-feita comparando os dois arquivos. No Windows dá para rodar um por vez:
+As saídas ficam em `testes/saida`. No Windows dá para rodar um por vez:
 
 ```
-main.exe testes\01_comentarios.asm testes\saida\01_comentarios.pre
+main.exe testes\lexico\correto_1.asm testes\saida\correto_1.lex
 ```
-
-Para acrescentar um caso, basta criar um `.asm` novo na pasta; o `make testes`
-encontra sozinho.
 
 Os outros atalhos são `make` para compilar e `make limpar` para apagar o
 executável e a pasta de saídas.
 
-## Observações sobre a implementação
+## Pontos em que o enunciado deixa margem
 
-Os arquivos são abertos em modo binário (`"rb"` e `"wb"`) porque no Windows o
-modo texto converteria as quebras de linha por conta própria. Quem trata isso
-é a função `ler_linha()`, o que deixa o comportamento igual em qualquer
-sistema.
-
-Não há limite de tamanho de linha: o buffer começa com 128 bytes e dobra com
-`realloc()` sempre que enche.
-
-O programa recusa executar quando o arquivo de entrada e o de saída têm o mesmo
-nome, caso contrário, o código-fonte seria apagado antes de ser lido.
-
-Os espaços em volta das vírgulas não são mexidos: `sub $t3,$t0,$t1` continua
-assim mesmo.
+- **Linha e coluna** são contadas no `.pre`, que é o arquivo lido pela análise
+  léxica. Como o pré-processamento tira a indentação e as linhas vazias, elas
+  podem ser diferentes das posições no `.asm` original.
+- **Quantidade de argumentos:** o texto fala em três, mas o exemplo usa dois.
+  O programa aceita as duas formas.
+- **`2valor`** é registrado como identificador malformado, porque é assim que
+  o enunciado classifica esse exemplo.
+- **`add:`** gera `INS_ADD` e `SMB_COL` sem erro. Rejeitar uma instrução usada
+  como rótulo é trabalho da análise sintática.
+- **Primeira ocorrência** de um identificador pode ser uma referência: em
+  `.globl main`, `main` já entra na tabela com a posição do `.globl`.

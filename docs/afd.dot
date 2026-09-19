@@ -1,0 +1,131 @@
+// AFD do analisador léxico u-Assembly.
+// Cada estado corresponde a um valor do enum Estado em lexico.c.
+//
+// Para gerar a imagem:  dot -Tpng docs/afd.dot -o docs/afd.png
+//
+// "delim*" significa que o lexema terminou num delimitador (espaço, tab,
+// quebra de linha, vírgula, dois-pontos, parênteses, aspas, # ou EOF).
+// O asterisco indica que esse caractere NÃO é consumido: ele fica para o
+// próximo token.
+
+digraph AFD {
+    rankdir=LR;
+    newrank=true;
+    nodesep=0.35;
+    ranksep=0.7;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=9];
+
+    inicio [shape=point, width=0.15];
+
+    // estados intermediários
+    node [shape=circle, width=1.1, fixedsize=true];
+    E_INICIAL       [label="INICIAL"];
+    E_COMENTARIO    [label="COMENTÁRIO"];
+    E_IDENTIFICADOR [label="IDENTIF."];
+    E_DIRETIVA      [label="DIRETIVA"];
+    E_REGISTRADOR   [label="REGISTR."];
+    E_SINAL         [label="SINAL"];
+    E_ZERO          [label="ZERO"];
+    E_DECIMAL       [label="DECIMAL"];
+    E_HEX_INICIO    [label="HEX_INÍCIO"];
+    E_HEX           [label="HEX"];
+    E_STRING        [label="STRING"];
+    E_ESCAPE        [label="ESCAPE"];
+    E_MALFORMADO    [label="MALFORM."];
+
+    // estados finais que devolvem token
+    node [shape=doublecircle, width=1.0, fixedsize=true, style=filled, fillcolor="#e3f1e8"];
+    F_PALAVRA [label="ID ou\nINS_*"];
+    F_DIR     [label="DIR_*"];
+    F_REG     [label="REG"];
+    F_NUM     [label="NUM_INT"];
+    F_STR     [label="STRING"];
+    F_COM     [label="SMB_COM"];
+    F_COL     [label="SMB_COL"];
+    F_OPA     [label="SMB_OPA"];
+    F_CPA     [label="SMB_CPA"];
+    F_EOF     [label="TK_EOF"];
+
+    // estados finais de erro: registram o erro e voltam ao INICIAL
+    node [shape=box, fixedsize=false, margin="0.15,0.07", style="rounded,filled", fillcolor="#f8e1dc"];
+    X_CARACTERE [label="ERRO_CARACTERE_INVALIDO"];
+    X_DIRETIVA  [label="ERRO_DIRETIVA_INVALIDA"];
+    X_REGISTRO  [label="ERRO_REGISTRADOR_INVALIDO"];
+    X_STRING    [label="ERRO_STRING_NAO_FECHADA\n(ou _EOF)"];
+    X_MALFORM   [label="ERRO_IDENTIFICADOR_MALFORMADO\nou ERRO_NUMERO_MALFORMADO"];
+    X_ESCAPE    [label="ERRO_ESCAPE_INVALIDO"];
+
+    inicio -> E_INICIAL;
+
+    // espaços e comentários não geram token
+    E_INICIAL -> E_INICIAL       [label="espaço, \\t, \\n", tailport=s, headport=s];
+    E_INICIAL -> E_COMENTARIO    [label="#"];
+    E_COMENTARIO -> E_COMENTARIO [label="qualquer exceto \\n"];
+    E_COMENTARIO -> E_INICIAL    [label="\\n*, EOF*"];
+
+    // fim de arquivo e símbolos
+    E_INICIAL -> F_EOF [label="EOF"];
+    E_INICIAL -> F_COM [label=","];
+    E_INICIAL -> F_COL [label=":"];
+    E_INICIAL -> F_OPA [label="("];
+    E_INICIAL -> F_CPA [label=")"];
+    E_INICIAL -> X_CARACTERE [label="outro"];
+
+    // instruções e identificadores
+    E_INICIAL -> E_IDENTIFICADOR       [label="letra, _"];
+    E_IDENTIFICADOR -> E_IDENTIFICADOR [label="letra, dígito, _"];
+    E_IDENTIFICADOR -> F_PALAVRA       [label="delim*\n(consulta a TS)"];
+    E_IDENTIFICADOR -> E_MALFORMADO    [label="outro"];
+
+    // diretivas
+    E_INICIAL -> E_DIRETIVA     [label="."];
+    E_DIRETIVA -> E_DIRETIVA    [label="letra, dígito, _"];
+    E_DIRETIVA -> F_DIR         [label="delim*\n(está na TS)"];
+    E_DIRETIVA -> X_DIRETIVA    [label="delim*\n(não está na TS)"];
+    E_DIRETIVA -> E_MALFORMADO  [label="outro"];
+
+    // registradores
+    E_INICIAL -> E_REGISTRADOR     [label="$"];
+    E_REGISTRADOR -> E_REGISTRADOR [label="letra, dígito, _"];
+    E_REGISTRADOR -> F_REG         [label="delim*\n(está na TS)"];
+    E_REGISTRADOR -> X_REGISTRO    [label="delim*\n(não está na TS)"];
+    E_REGISTRADOR -> E_MALFORMADO  [label="outro"];
+
+    // números
+    E_INICIAL -> E_SINAL    [label="-"];
+    E_INICIAL -> E_ZERO     [label="0"];
+    E_INICIAL -> E_DECIMAL  [label="1-9"];
+    E_SINAL -> E_ZERO       [label="0"];
+    E_SINAL -> E_DECIMAL    [label="1-9"];
+    E_SINAL -> X_CARACTERE  [label="outro*"];
+    E_ZERO -> E_HEX_INICIO  [label="x, X"];
+    E_ZERO -> E_DECIMAL     [label="dígito"];
+    E_ZERO -> F_NUM         [label="delim*"];
+    E_ZERO -> E_MALFORMADO  [label="outro"];
+    E_DECIMAL -> E_DECIMAL  [label="dígito"];
+    E_DECIMAL -> F_NUM      [label="delim*"];
+    E_DECIMAL -> E_MALFORMADO [label="outro"];
+    E_HEX_INICIO -> E_HEX   [label="0-9, a-f, A-F"];
+    E_HEX_INICIO -> E_MALFORMADO [label="outro"];
+    E_HEX -> E_HEX          [label="0-9, a-f, A-F"];
+    E_HEX -> F_NUM          [label="delim*"];
+    E_HEX -> E_MALFORMADO   [label="outro"];
+
+    // cadeias de caracteres
+    E_INICIAL -> E_STRING   [label="\""];
+    E_STRING -> E_STRING    [label="qualquer exceto\n\", \\ e \\n"];
+    E_STRING -> F_STR       [label="\""];
+    E_STRING -> E_ESCAPE    [label="\\"];
+    E_STRING -> X_STRING    [label="\\n*, EOF*"];
+    E_ESCAPE -> E_STRING    [label="n, t, \", \\, 0"];
+    E_ESCAPE -> X_ESCAPE    [label="outro"];
+    X_ESCAPE -> E_STRING    [label="continua a string", style=dashed];
+
+    // recuperação de erro: descarta até o próximo delimitador
+    E_MALFORMADO -> E_MALFORMADO [label="não delimitador"];
+    E_MALFORMADO -> X_MALFORM    [label="delim*"];
+
+    { rank=same; F_COM; F_COL; F_OPA; F_CPA; F_EOF; }
+}

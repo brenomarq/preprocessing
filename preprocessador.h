@@ -32,14 +32,6 @@ enum {
     ERRO_MEMORIA
 };
 
-/* Contadores usados para mostrar um resumo estatístico no final */
-typedef struct {
-    long lidas;
-    long gravadas;
-    long removidas;
-    long comentarios;
-} Estatisticas;
-
 /* Retorna verdadeiro para espaço, tabulação e afins */
 int eh_espaco(char c);
 
@@ -56,16 +48,17 @@ int linha_vazia(const char *linha);
 
 /* Aplica as etapas de limpeza em uma linha. Retorna 1 se ela deve ser
    gravada na saída. */
-int processar_linha(char *linha, Estatisticas *est);
+int processar_linha(char *linha);
 
 /* Lê uma linha aceitando "\n", "\r\n" e "\r". Devolve memória
    alocada com malloc, ou NULL no fim do arquivo. */
 char *ler_linha(FILE *entrada, int *status);
 
-/* Percorre o arquivo inteiro. Retorna OK ou um dos códigos de erro. */
-int processar_arquivo(FILE *entrada, FILE *saida, Estatisticas *est);
+/* Função pedida no enunciado, chamada pelo main. Lê o arquivo .asm
+   inteiro e grava a versão normalizada em out. Retorna OK ou um dos
+   códigos de erro. */
+int PreProcessamento(FILE *in, FILE *out);
 
-void zerar_estatisticas(Estatisticas *est);
 const char *mensagem_erro(int codigo);
 
 #endif

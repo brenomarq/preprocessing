@@ -120,19 +120,10 @@ int linha_vazia(const char *linha) {
  vazia fica por último porque só aí a linha está do jeito final. Por exemplo,
  uma linha que só tinha comentário só fica vazia depois das duas etapas.
 */
-int processar_linha(char *linha, Estatisticas *est) {
-    if (remover_comentario(linha)) {
-        est->comentarios++;
-    }
-
+int processar_linha(char *linha) {
+    remover_comentario(linha);
     normalizar_espacos(linha);
-
-    if (linha_vazia(linha)) {
-        est->removidas++;
-        return 0;
-    }
-
-    return 1;
+    return !linha_vazia(linha);
 }
 
 /*
@@ -197,41 +188,28 @@ char *ler_linha(FILE *entrada, int *status) {
     return linha;
 }
 
-int processar_arquivo(FILE *entrada, FILE *saida, Estatisticas *est) {
+int PreProcessamento(FILE *in, FILE *out) {
     char *linha;
     int status = OK;
 
-    zerar_estatisticas(est);
-
-    while ((linha = ler_linha(entrada, &status)) != NULL) {
-        est->lidas++;
-
-        if (processar_linha(linha, est)) {
-            fprintf(saida, "%s%s", linha, FIM_DE_LINHA);
-            est->gravadas++;
+    while ((linha = ler_linha(in, &status)) != NULL) {
+        if (processar_linha(linha)) {
+            fprintf(out, "%s%s", linha, FIM_DE_LINHA);
         }
-
         free(linha);
     }
 
     if (status != OK) {
         return status;
     }
-    if (ferror(entrada)) {
+    if (ferror(in)) {
         return ERRO_LEITURA;
     }
-    if (ferror(saida)) {
+    if (ferror(out)) {
         return ERRO_ESCRITA;
     }
 
     return OK;
-}
-
-void zerar_estatisticas(Estatisticas *est) {
-    est->lidas = 0;
-    est->gravadas = 0;
-    est->removidas = 0;
-    est->comentarios = 0;
 }
 
 /* Mensagens de erros possíveis durante o pré-processamento. */
@@ -244,7 +222,7 @@ const char *mensagem_erro(int codigo) {
         case ERRO_ABRIR_SAIDA:
             return "Não foi possível criar o arquivo de saída.";
         case ERRO_MESMO_ARQUIVO:
-            return "O arquivo de saída nao pode ser o mesmo da entrada.";
+            return "Os arquivos de entrada e de saída precisam ter nomes diferentes.";
         case ERRO_LEITURA:
             return "Falha ao ler o arquivo de entrada.";
         case ERRO_ESCRITA:

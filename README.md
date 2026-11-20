@@ -1,43 +1,56 @@
-# Analisador léxico μ-Assembly
+# Analisador sintático μ-Assembly
 
-Etapas 1 e 2 do projeto de Linguagens Formais, Autômatos e Compiladores.
+Etapas 1, 2 e 3 do projeto de Linguagens Formais, Autômatos e Compiladores.
 
 Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
-O programa lê um arquivo `.asm` escrito em μ-Assembly, faz o pré-processamento
-e em seguida a análise léxica. No fim ficam quatro arquivos: o código
-normalizado (`.pre`), os tokens (`.lex`), a tabela de símbolos (`.ts`) e os
-erros léxicos (`.err`).
+O programa recebe um arquivo `.asm` escrito em μ-Assembly e executa três
+etapas em sequência: pré-processamento, análise léxica e análise sintática.
 
 ## Compilação e execução
 
 ```
-gcc main.c preprocessador.c lexico.c -o main.exe
-main.exe teste.asm teste.lex
+gcc main.c preprocessador.c lexico.c sintatico.c -o main.exe
+main.exe teste.asm resultado
 ```
 
 Os arquivos `.h` não precisam ir no comando, porque são incluídos pelos `.c`.
 
-Com dois nomes, o `.pre`, o `.ts` e o `.err` recebem o nome do `.lex` trocando
-só a extensão: o exemplo acima gera `teste.pre`, `teste.lex`, `teste.ts` e
-`teste.err`. Também dá para escolher o nome do `.pre`:
+O segundo argumento é um **prefixo**, e dele saem seis arquivos:
 
-```
-main.exe teste.asm saida.pre teste.lex
-```
+| Arquivo | Conteúdo |
+|---|---|
+| `resultado.pre` | código normalizado pelo pré-processamento |
+| `resultado.lex` | tokens reconhecidos |
+| `resultado.ts` | tabela de símbolos |
+| `resultado.lex.err` | erros léxicos |
+| `resultado.sin.err` | erros sintáticos |
+| `resultado.dot` | árvore sintática, quando o programa é válido |
 
-Se a quantidade de argumentos estiver errada, se algum arquivo não puder ser
-aberto ou se dois arquivos tiverem o mesmo nome, o programa mostra o erro e
-encerra. Os erros léxicos não interrompem a execução: eles vão para o `.err`.
+Ao terminar, o programa informa no terminal se o programa é válido, e encerra
+com um destes códigos:
+
+| Código | Situação |
+|---|---|
+| 0 | programa sintaticamente válido |
+| 1 | rejeitado por erros léxicos ou sintáticos |
+| 2 | falha operacional ou uso incorreto da linha de comando |
+
+Se existirem erros léxicos, a análise sintática não roda: o programa avisa
+`ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.`, deixa o `.dot`
+vazio e registra o motivo no `.sin.err`.
 
 ## Arquivos
 
 - `main.c` — argumentos, abertura dos arquivos e a ordem das etapas.
 - `preprocessador.c` e `preprocessador.h` — etapa 1.
 - `lexico.c` e `lexico.h` — etapa 2.
-- `docs/afd.dot` e `docs/afd.png` — o diagrama do AFD.
-- `docs/lexico.md` — explicação detalhada do código do analisador léxico.
-- `testes/` — arquivos `.asm` das duas etapas.
+- `sintatico.c` e `sintatico.h` — etapa 3.
+- `docs/afd.dot` e `docs/afd.png` — o autômato do analisador léxico.
+- `docs/arvore.png` — uma árvore sintática renderizada pelo Graphviz.
+- `docs/lexico.md` e `docs/sintatico.md` — explicação do código das etapas 2 e 3.
+- `docs/relatorio.md` e `docs/relatorio.pdf` — o relatório técnico da etapa 2.
+- `testes/` — arquivos `.asm` das três etapas.
 
 ## Pré-processamento
 
@@ -50,10 +63,8 @@ preservado. Nenhuma validação é feita nessa etapa.
 ## Análise léxica
 
 É a etapa 2, feita pela função `AnaliseLexica()`. Ela lê o `.pre` caractere por
-caractere usando um autômato finito determinístico (o diagrama está em
+caractere usando um autômato finito determinístico (diagrama em
 `docs/afd.png`), agrupa os caracteres em lexemas e classifica cada um.
-
-### Tokens reconhecidos
 
 | Categoria | Exemplos de lexema | Token |
 |---|---|---|
@@ -66,76 +77,81 @@ caractere usando um autômato finito determinístico (o diagrama está em
 | Símbolos | `,` `:` `(` `)` | `SMB_COM`, `SMB_COL`, `SMB_OPA`, `SMB_CPA` |
 | Fim do arquivo | | `TK_EOF` |
 
-São 10 diretivas, 36 instruções e os registradores `$zero`, `$v0`–`$v1`,
-`$a0`–`$a3`, `$t0`–`$t9`, `$s0`–`$s7`, `$k0`–`$k1`, `$gp`, `$sp`, `$fp`, `$ra`
-e `$0`–`$31`. Instruções, diretivas e registradores são reconhecidos com
-maiúsculas ou minúsculas (`ADD` é `INS_ADD`).
+A tabela de símbolos começa com as 109 palavras reservadas (10 diretivas, 36
+instruções e os registradores) e recebe os identificadores conforme eles
+aparecem. Os oito tipos de erro léxico vão para o `.lex.err` no formato
+`<tipo, lexema> linha coluna`. Os detalhes estão em `docs/lexico.md`.
 
-### Tabela de símbolos
+## Análise sintática
 
-Começa com todas as diretivas, instruções e registradores, com linha e coluna
-zeradas. Quando um deles aparece pela primeira vez no programa, a posição é
-preenchida. Os identificadores entram na tabela na primeira vez que aparecem e
-diferenciam maiúsculas de minúsculas, então `inicio` e `Inicio` são símbolos
-diferentes. Números, strings e símbolos de pontuação não entram.
+É a etapa 3, feita pela função `AnaliseSintatica()`. Ela lê o `.lex`,
+reconstrói os tokens e verifica se a sequência respeita a gramática, usando
+análise descendente recursiva: há uma função para cada um dos 32 não terminais,
+e elas se chamam conforme as produções.
 
-### Erros léxicos
+### O que é verificado
 
-| Erro | Exemplo |
-|---|---|
-| `ERRO_CARACTERE_INVALIDO` | `@`, ou um `-` que não vem colado a um número |
-| `ERRO_IDENTIFICADOR_MALFORMADO` | `2valor`, `soma-total`, `inicio@` |
-| `ERRO_NUMERO_MALFORMADO` | `0xG1`, `0x`, `12.5` |
-| `ERRO_DIRETIVA_INVALIDA` | `.dados` |
-| `ERRO_REGISTRADOR_INVALIDO` | `$t10`, `$32`, `$x1` |
-| `ERRO_STRING_NAO_FECHADA` | `"Mensagem` sem aspas até o fim da linha |
-| `ERRO_STRING_NAO_FECHADA_EOF` | o mesmo, mas chegando ao fim do arquivo |
-| `ERRO_ESCAPE_INVALIDO` | `\q` dentro de uma string |
+- A organização do programa em seções, que precisa ter pelo menos uma.
+- Que instruções só aparecem em `.text` e diretivas de dados só em `.data`.
+- A quantidade, a ordem e a categoria dos operandos de cada instrução.
+- A presença de vírgulas, dois-pontos e parênteses.
+- Que a entrada é consumida inteira até o `TK_EOF`.
 
-Um lexema com erro não vira token. O erro é registrado e a análise continua a
-partir do próximo delimitador, para que o `.err` tenha todos os erros do
-arquivo, e não só o primeiro.
+Não são verificados, por pertencerem à análise semântica: rótulos
+referenciados que não existem, rótulos declarados duas vezes, limites
+numéricos dos operandos e códigos de serviço do `syscall`.
 
-### Exemplo
+### Diagnósticos e recuperação
 
-Para a entrada
+Cada erro vai para o `.sin.err` em duas linhas, com a localização, o que foi
+encontrado e o que era esperado:
 
 ```
-.text
-main:
-    li $v0, 10
-    syscall
+Linha 4, coluna 9:
+Encontrado REG("$t1"); esperado SMB_COM(",").
 ```
 
-o `.lex` fica
+Depois de um erro, o analisador descarta o resto da linha e retoma na linha
+seguinte, preservando a seção ativa. Por isso erros em linhas diferentes são
+todos encontrados na mesma execução. Qualquer erro torna o programa inválido,
+mesmo que a recuperação permita reconhecer o resto.
+
+### Árvore sintática
+
+Para programas válidos é gravada a árvore sintática concreta em formato DOT,
+com `<programa>` na raiz, os não terminais nos nós internos e os terminais nas
+folhas, incluindo `EOL` e `TK_EOF`. Para programas inválidos o `.dot` fica
+vazio, nunca com uma árvore parcial.
+
+Para gerar a imagem:
 
 ```
-<DIR_TEXT, .text> 1 1
-<ID, main> 2 1
-<SMB_COL, :> 2 5
-<INS_LI, li> 3 1
-<REG, $v0> 3 4
-<SMB_COM, ,> 3 7
-<NUM_INT, 10> 3 9
-<INS_SYSCALL, syscall> 4 1
-<TK_EOF, EOF> 5 1
+dot -Tpng resultado.dot -o resultado.png
 ```
 
-o `.ts` começa com `LEXEMA,CATEGORIA,LINHA,COLUNA` e tem uma linha por
-símbolo, como `main,identificador/rótulo,2,1`, e o `.err` contém
-`Nenhum erro léxico encontrado.`
+Um exemplo pronto está em `docs/arvore.png`.
 
 ## Testes
 
-A pasta `testes/lexico` tem os casos pedidos no enunciado:
+A pasta `testes/sintatico` tem os casos da etapa 3:
 
-- `correto_1`, `correto_2` e `correto_3` — programas sem nenhum erro léxico;
-- `erro_1`, `erro_2` e `erro_3` — programas com erros de todos os tipos;
-- `comentarios`, `strings`, `numeros` e `memoria` — um para cada assunto
-  (`memoria` usa o formato `deslocamento(registrador)`).
+- `valido_1`, `valido_2`, `valido_3` — programas sem erro, cobrindo as três
+  formas de organização, todas as diretivas e as 36 instruções;
+- `valido_4_limites` — rótulo inexistente e rótulo declarado duas vezes, que
+  são válidos nesta etapa;
+- `valido_5_sem_quebra_final` — arquivo sem quebra de linha no fim;
+- `invalido_1_operandos` — operandos ausentes, excedentes, fora de ordem e de
+  categoria errada, além de token sobrando depois de uma instrução completa;
+- `invalido_2_pontuacao` — vírgula, dois-pontos e parênteses ausentes e lista
+  de inteiros terminada por vírgula;
+- `invalido_3_secoes` — instrução em `.data`, diretiva de dados em `.text` e
+  linha fora de qualquer seção;
+- `invalido_4_recuperacao` — erros em linhas distintas, com as construções
+  seguintes reconhecidas;
+- `invalido_5_vazio` — arquivo vazio, que não tem a seção exigida.
 
-A pasta `testes/preprocessamento` tem os dez casos da etapa 1. Para rodar
-todos, no macOS ou Linux:
+As pastas `testes/lexico` e `testes/preprocessamento` têm os casos das etapas
+anteriores, que continuam servindo de regressão. Para rodar todos:
 
 ```
 make testes
@@ -144,7 +160,7 @@ make testes
 As saídas ficam em `testes/saida`. No Windows dá para rodar um por vez:
 
 ```
-main.exe testes\lexico\correto_1.asm testes\saida\correto_1.lex
+main.exe testes\sintatico\valido_1.asm testes\saida\valido_1
 ```
 
 Os outros atalhos são `make` para compilar e `make limpar` para apagar o
@@ -152,14 +168,15 @@ executável e a pasta de saídas.
 
 ## Pontos em que o enunciado deixa margem
 
-- **Linha e coluna** são contadas no `.pre`, que é o arquivo lido pela análise
-  léxica. Como o pré-processamento tira a indentação e as linhas vazias, elas
-  podem ser diferentes das posições no `.asm` original.
-- **Quantidade de argumentos:** o texto fala em três, mas o exemplo usa dois.
-  O programa aceita as duas formas.
-- **`2valor`** é registrado como identificador malformado, porque é assim que
-  o enunciado classifica esse exemplo.
-- **`add:`** gera `INS_ADD` e `SMB_COL` sem erro. Rejeitar uma instrução usada
-  como rótulo é trabalho da análise sintática.
+- **Linha e coluna** são contadas no `.pre`, que é o arquivo que as etapas
+  seguintes leem. Como o pré-processamento tira a indentação e as linhas
+  vazias, elas podem ser diferentes das posições no `.asm` original.
+- **`add:`** é recusado na análise sintática. O léxico classifica `add` como
+  `INS_ADD`, e não como `ID`, então `<linha_codigo>` segue pelo caminho da
+  instrução e o `:` não encaixa em nenhuma produção. O diagnóstico sai como
+  `Encontrado SMB_COL(":"); esperado REG`.
 - **Primeira ocorrência** de um identificador pode ser uma referência: em
-  `.globl main`, `main` já entra na tabela com a posição do `.globl`.
+  `.globl main`, `main` já entra na tabela de símbolos com a posição do
+  `.globl`.
+- **O `.sin.err` é sempre gravado**, inclusive quando não há erro nenhum, caso
+  em que contém `Nenhum erro sintático encontrado.`

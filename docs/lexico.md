@@ -71,11 +71,6 @@ coluna para 1, e qualquer outro caractere soma uma coluna. Como ninguém mais
 mexe em `linha` e `coluna`, não tem como a contagem sair errada em um lugar
 e certa em outro.
 
-Tem um detalhe: letras com acento ocupam dois bytes em UTF-8. Se cada byte
-contasse uma coluna, tudo que viesse depois de um `"Olá"` na mesma linha
-ficaria uma coluna adiante do que o editor mostra. Por isso os bytes de
-continuação do UTF-8 (os que começam com `10` em binário) não somam coluna.
-
 A posição de um token é a posição do seu primeiro caractere. O estado inicial
 anota `linha` e `coluna` antes de consumir qualquer coisa, e é isso que vai
 para o token.
@@ -202,8 +197,7 @@ receber só tokens que fazem sentido.
 A recuperação depende de onde o erro aparece:
 
 - **Caractere inválido no começo de um lexema** (`@`): registra só aquele
-  caractere e continua a partir do próximo. Se o caractere tiver acento,
-  todos os bytes dele entram no erro, para o `.err` mostrar `ç` e não pedaços.
+  caractere e continua a partir do próximo.
 - **Caractere inválido no meio de um lexema** (`inicio@`, `0xG1`): o estado
   vai para `E_MALFORMADO`, que descarta tudo até o próximo delimitador e
   registra o lexema inteiro. Sem isso, `inicio@` viraria um `ID` válido

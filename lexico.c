@@ -3,9 +3,9 @@
 
  Analisador léxico da linguagem u-Assembly.
 
- O coração do arquivo é ProximoToken(), que implementa o AFD. Cada valor do
+ Quem faz o trabalho é ProximoToken(), que implementa o AFD: cada valor do
  enum Estado é um estado do diagrama (docs/afd.dot) e cada case do switch
- contém as transições que saem daquele estado.
+ tem as transições que saem dele.
 */
 
 #include <ctype.h>
@@ -86,12 +86,9 @@ static void sem_memoria(void) {
 }
 
 /*
- Leitura do arquivo.
-
- espiar() olha o próximo caractere sem consumir, e avancar() consome e
- atualiza linha e coluna. Assim nenhum estado precisa devolver caractere
- para o arquivo: ele espia, decide, e só consome se o caractere fizer parte
- do lexema. Quando o lexema termina, o caractere que o terminou continua lá
+ espiar() olha o próximo caractere sem consumir; avancar() consome e atualiza
+ linha e coluna. Assim cada estado espia, decide, e só consome se o caractere
+ fizer parte do lexema. O caractere que encerrou o lexema continua no arquivo
  para a próxima chamada.
 */
 static int espiar(void) {
@@ -108,9 +105,7 @@ static int avancar(void) {
     if (c == '\n') {
         linha++;
         coluna = 1;
-    } else if (c != EOF && (c & 0xC0) != 0x80) {
-        // Os bytes de continuação do UTF-8 não contam como coluna nova.
-        // Assim "Olá" ocupa 3 colunas, como aparece no editor, e não 4.
+    } else if (c != EOF) {
         coluna++;
     }
     return c;
@@ -126,18 +121,6 @@ static int consumir(Token *t, int *tam) {
         t->lexema[*tam] = '\0';
     }
     return c;
-}
-
-/* Um caractere com acento ocupa mais de um byte em UTF-8. Lemos todos os
-   bytes dele para o erro mostrar "ç" inteiro, e não pedaços soltos. */
-static void consumir_caractere_invalido(Token *t, int *tam) {
-    int c = consumir(t, tam);
-
-    if (c >= 0xC0) {
-        while ((espiar() & 0xC0) == 0x80) {
-            consumir(t, tam);
-        }
-    }
 }
 
 static int eh_letra(int c) {
@@ -176,8 +159,6 @@ static void montar_nome(Token *t, const char *prefixo, const char *palavra) {
     }
     t->nome[n + i] = '\0';
 }
-
-/* ---------------------------- Tabela de símbolos ---------------------------- */
 
 static Simbolo *buscar_simbolo(const char *lexema) {
     int i;
@@ -258,8 +239,6 @@ static void classificar_palavra(Token *t) {
     inserir_simbolo(t->lexema, CAT_ROTULO, t->linha, t->coluna);
 }
 
-/* ---------------------------------- Erros ---------------------------------- */
-
 static void registrar_erro(const char *tipo, const Token *t) {
     if (total_erros == capacidade_erros) {
         int nova = capacidade_erros == 0 ? 32 : capacidade_erros * 2;
@@ -286,17 +265,11 @@ static const char *erro_de_numero(const Token *t, int c) {
     return "ERRO_NUMERO_MALFORMADO";
 }
 
-/* ----------------------------------- AFD ----------------------------------- */
-
 /*
- A cada volta do laço espiamos o próximo caractere e o estado atual decide
- o que fazer: consumir e continuar, consumir e mudar de estado, ou encerrar
- o lexema.
-
- Quando o lexema termina num estado de aceitação, o token é devolvido.
- Quando termina com erro, o erro é guardado e voltamos ao estado inicial
- para procurar o próximo token. A análise nunca para no primeiro erro,
- porque o .err precisa ter todos eles.
+ A cada volta do laço espiamos o próximo caractere e o estado atual decide se
+ consome, se muda de estado ou se o lexema acabou. Terminando bem, devolve o
+ token; terminando com erro, guarda o erro e volta ao estado inicial. A análise
+ nunca para no primeiro erro, porque o .err precisa ter todos eles.
 */
 Token ProximoToken(void) {
     Estado estado = E_INICIAL;
@@ -376,7 +349,7 @@ Token ProximoToken(void) {
                 strcpy(t.nome, "SMB_CPA");
                 return t;
             } else {
-                consumir_caractere_invalido(&t, &tam);
+                consumir(&t, &tam);
                 registrar_erro("ERRO_CARACTERE_INVALIDO", &t);
             }
             break;
@@ -555,11 +528,10 @@ Token ProximoToken(void) {
     }
 }
 
-/* ------------------------------ Funções públicas ------------------------------ */
-
 void IniciarLexico(FILE *in) {
     char nome[8];
-    int i;
+    size_t i;
+    int n;
 
     // se já houve uma análise antes, começa do zero
     LiberarLexico();
@@ -568,17 +540,17 @@ void IniciarLexico(FILE *in) {
     linha = 1;
     coluna = 1;
 
-    for (i = 0; i < (int) QTD(DIRETIVAS); i++) {
+    for (i = 0; i < QTD(DIRETIVAS); i++) {
         inserir_simbolo(DIRETIVAS[i], CAT_DIRETIVA, 0, 0);
     }
-    for (i = 0; i < (int) QTD(INSTRUCOES); i++) {
+    for (i = 0; i < QTD(INSTRUCOES); i++) {
         inserir_simbolo(INSTRUCOES[i], CAT_INSTRUCAO, 0, 0);
     }
-    for (i = 0; i < (int) QTD(REGISTRADORES); i++) {
+    for (i = 0; i < QTD(REGISTRADORES); i++) {
         inserir_simbolo(REGISTRADORES[i], CAT_REGISTRADOR, 0, 0);
     }
-    for (i = 0; i <= 31; i++) {
-        snprintf(nome, sizeof(nome), "$%d", i);
+    for (n = 0; n <= 31; n++) {
+        snprintf(nome, sizeof(nome), "$%d", n);
         inserir_simbolo(nome, CAT_REGISTRADOR, 0, 0);
     }
 }

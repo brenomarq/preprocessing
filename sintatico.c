@@ -2,10 +2,7 @@
  sintatico.c
 
  Analisador sintático descendente recursivo da linguagem u-Assembly.
-
- A entrada é o arquivo .lex da etapa anterior. O módulo relê esse texto,
- reconstrói os tokens e acrescenta os marcadores EOL, que não existem no
- arquivo e precisam ser deduzidos do número da linha de cada token.
+ A entrada é o .lex da etapa anterior.
 */
 
 #include <ctype.h>
@@ -13,7 +10,7 @@
 #include <string.h>
 
 #include "sintatico.h"
-#include "lexico.h"   /* reaproveita o tipo Token e o tamanho dos campos */
+#include "lexico.h"   /* usa o tipo Token */
 
 #define EOL    "EOL"
 #define TK_EOF "TK_EOF"
@@ -52,17 +49,11 @@ static int branco(char c) {
 }
 
 /*
- Desmonta uma linha do .lex no formato
+ Desmonta uma linha do .lex, no formato <NOME, lexema> linha coluna.
 
-     <NOME, lexema> linha coluna
-
- A leitura é feita da direita para a esquerda: primeiro a coluna, depois a
- linha e por fim o '>'. O motivo é que o lexema de uma STRING pode conter
- vírgula, espaço e até o próprio '>', como em <STRING, "a, b> c"> 3 5.
- Procurar o separador da esquerda para a direita quebraria nesse caso.
-
- O nome, esse sim, nunca contém vírgula, então vem da primeira vírgula.
- Devolve 0 se a linha não tiver o formato esperado.
+ Lemos de trás para a frente porque o lexema de uma STRING pode ter vírgula
+ e até '>' dentro, como em <STRING, "a, b> c"> 3 5. Devolve 0 se a linha não
+ estiver no formato esperado.
 */
 static int decompor(char *texto, Token *t) {
     char *virgula;
@@ -141,17 +132,10 @@ static int decompor(char *texto, Token *t) {
 }
 
 /*
- Lê o arquivo inteiro montando o fluxo de tokens.
-
- O EOL é inserido sempre que o número da linha muda, e também antes do
- TK_EOF, para que a última linha termine com o marcador mesmo quando o
- arquivo não tiver quebra de linha no fim. A coluna do EOL é a posição logo
- depois do último lexema da linha, que é o que os diagnósticos usam quando
- falta um elemento no fim da linha.
-
- Linhas sem tokens não existem no .lex, então não geram marcador nenhum.
-
- Devolve 0 em caso de falha de memória ou de formato.
+ Monta o fluxo de tokens. O EOL não existe no .lex: entra sempre que o
+ número da linha muda e antes do TK_EOF. A coluna dele é logo depois do
+ último lexema da linha. Devolve 0 se faltar memória ou o formato estiver
+ errado.
 */
 static int carregar(FILE *entrada) {
     char linha[TAM_LEXEMA + TAM_NOME + 64];
@@ -200,7 +184,7 @@ static int carregar(FILE *entrada) {
         }
     }
 
-    /* O TK_EOF entra uma vez só: o do arquivo, se existir, ou um criado aqui. */
+    /* O TK_EOF entra uma vez só: o do arquivo ou um criado aqui. */
     if (achou_eof) {
         if (!acrescentar(TK_EOF, "EOF", t.linha, t.coluna)) {
             return 0;
@@ -224,14 +208,9 @@ static void liberar_fluxo(void) {
 }
 
 /*
- A árvore sintática concreta.
-
- Cada nó guarda o rótulo que vai para o arquivo .dot. Os não terminais usam
- o nome entre sinais de menor e maior, como <programa>; os terminais usam a
- categoria do token e, quando faz sentido, o lexema.
-
- Todos os nós criados ficam registrados em um vetor único, o que permite
- liberar tudo de uma vez no fim, sem precisar percorrer a árvore.
+ Um nó da árvore. Guarda o rótulo que vai para o .dot: <programa> nos não
+ terminais, categoria e lexema nos terminais. Todo nó criado também entra no
+ vetor "criados", para liberar tudo de uma vez no fim.
 */
 typedef struct No {
     char nome[TAM_NOME];
@@ -312,12 +291,7 @@ static void liberar_tudo(void) {
     liberar_fluxo();
 }
 
-/*
- Diagnósticos.
-
- O texto de "esperado" vem de quem chamou. Para os terminais mais comuns a
- função descricao() monta a forma SMB_COM(","), que é a usada no enunciado.
-*/
+/* Monta a forma SMB_COM(",") usada nos diagnósticos. */
 static const char *descricao(const char *categoria) {
     static const struct {
         const char *categoria;
@@ -357,7 +331,7 @@ static int eh(const char *categoria) {
     return strcmp(corrente()->nome, categoria) == 0;
 }
 
-/* Nunca passa do TK_EOF, que é sempre o último token do fluxo. */
+/* Não passa do TK_EOF, que é sempre o último. */
 static void avancar(void) {
     if (atual < total - 1) {
         atual++;
@@ -382,13 +356,9 @@ static void erro(const char *esperado) {
 }
 
 /*
- Recuperação: descarta o resto da linha e retoma na linha seguinte.
-
- Se o token atual já for o EOL, consome só ele. Se for o TK_EOF, não faz
- nada, porque não há mais linhas. Nos outros casos avança até o EOL e o
- consome. Em qualquer situação que não seja o fim do arquivo a posição
- avança pelo menos um token, o que impede repetir o mesmo diagnóstico para
- sempre. Tokens da linha seguinte nunca são descartados.
+ Descarta o resto da linha e retoma na linha seguinte. Fora do fim do
+ arquivo sempre avança ao menos um token, senão o mesmo erro seria
+ registrado para sempre.
 */
 static void recuperar(void) {
     if (eh(TK_EOF)) {
@@ -418,7 +388,7 @@ static No *folha(void) {
     return n;
 }
 
-/* Consome o terminal esperado e o anexa ao pai; se não for ele, diagnostica. */
+/* Consome o terminal esperado e pendura no pai. Se não for ele, diagnostica. */
 static int consumir(No *pai, const char *categoria, const char *esperado) {
     if (eh(categoria)) {
         adicionar(pai, folha());
@@ -464,9 +434,8 @@ static int inicia_instrucao(void) {
 }
 
 /*
- A partir daqui há uma função para cada não terminal da gramática. Todas
- devolvem o nó construído, ou NULL quando encontram um erro. A produção
- correspondente está no comentário acima de cada uma.
+ Uma função para cada não terminal. Todas devolvem o nó construído, ou NULL
+ quando dá erro. A produção está no comentário acima de cada uma.
 */
 static No *secao(void);
 static No *secao_dados(void);
@@ -523,8 +492,7 @@ static No *programa(void) {
         }
     }
 
-    /* Arquivo vazio ou sem nenhuma seção. O teste evita repetir o
-       diagnóstico quando o problema já foi apontado acima. */
+    /* Arquivo vazio ou sem seção. O teste evita repetir o diagnóstico. */
     if (!tem_secao && total_erros == 0) {
         erro(ABERTURA_SECAO);
     }
@@ -556,8 +524,8 @@ static No *secao_dados(void) {
         recuperar();
     }
 
-    /* A repetição só termina em uma nova seção ou no fim do arquivo. Uma
-       construção não permitida aqui é erro, e não fim da seção. */
+    /* Só termina em uma nova seção ou no fim do arquivo: o que não é
+       permitido aqui é erro, e não fim da seção. */
     while (!eh("DIR_DATA") && !eh("DIR_TEXT") && !eh(TK_EOF)) {
         No *l = linha_dados();
         if (l != NULL) {
@@ -1122,12 +1090,8 @@ static No *instrucao_sem_operandos(void) {
 }
 
 /*
- Gravação da árvore em DOT.
-
- São duas passagens sobre a árvore: a primeira numera os nós e declara cada
- um com seu rótulo, a segunda escreve as ligações. A numeração em pré-ordem
- garante identificadores exclusivos e deixa o arquivo na mesma ordem do
- exemplo do enunciado.
+ Gravação do .dot, em duas passagens: a primeira numera os nós em pré-ordem
+ e declara cada um, a segunda escreve as ligações.
 */
 static void escapar(FILE *saida, const char *texto) {
     int i;

@@ -115,10 +115,8 @@ int linha_vazia(const char *linha) {
 }
 
 /*
- A ordem das etapas importa: o comentário sai primeiro para não gastarmos
- tempo normalizando um texto que vai ser jogado fora, e o teste de linha
- vazia fica por último porque só aí a linha está do jeito final. Por exemplo,
- uma linha que só tinha comentário só fica vazia depois das duas etapas.
+ A ordem importa: o comentário sai primeiro e o teste de linha vazia fica
+ por último, porque só aí a linha está do jeito final.
 */
 int processar_linha(char *linha) {
     remover_comentario(linha);
@@ -127,12 +125,8 @@ int processar_linha(char *linha) {
 }
 
 /*
- Quebras de linha.
-
- O mesmo arquivo pode ter três terminadores diferentes: "\n" no Linux e no
- macOS, "\r\n" no Windows e "\r" sozinho no Mac antigo. Então, lemos byte
- a byte e paramos nos três casos, sem incluir o terminador na string 
- devolvida.
+ O mesmo arquivo pode terminar as linhas com "\n", "\r\n" ou "\r", então
+ lemos byte a byte e paramos nos três casos, sem guardar o terminador.
 */
 char *ler_linha(FILE *entrada, int *status) {
     size_t capacidade = TAM_INICIAL;

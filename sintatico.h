@@ -16,18 +16,13 @@
 #define SIN_FALHA   (-1)
 
 /*
- Lê a sequência de tokens, verifica se ela respeita a gramática e grava os
- resultados nos arquivos recebidos:
+ Verifica se os tokens respeitam a gramática, e grava o resultado:
 
-   tokens - o .lex, aberto para leitura;
-   arvore - o .dot, aberto para escrita. Só recebe a árvore sintática quando
-            o programa é válido; para programa inválido fica vazio;
-   erros  - o .sin.err, aberto para escrita. Sempre recebe conteúdo.
+   tokens - o .lex, para leitura;
+   arvore - o .dot, que só recebe a árvore quando o programa é válido;
+   erros  - o .sin.err, que sempre recebe conteúdo.
 
  Devolve SIN_VALIDO, SIN_INVALIDO ou SIN_FALHA.
-
- Cada não terminal da gramática tem uma função de reconhecimento própria,
- declarada como static em sintatico.c.
 */
 int AnaliseSintatica(FILE *tokens, FILE *arvore, FILE *erros);
 

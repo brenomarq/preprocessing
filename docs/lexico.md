@@ -1,8 +1,8 @@
 # Como funciona o analisador léxico
 
 Este texto explica o código de `lexico.c` e `lexico.h` e como ele se liga ao
-resto do programa. A ideia é que qualquer pessoa do grupo consiga ler o código
-depois disto e explicar cada parte.
+resto do programa, para que qualquer um do grupo consiga ler o código depois
+e explicar cada parte.
 
 ## 1. O caminho de um arquivo pelo programa
 
@@ -46,9 +46,9 @@ muda o `nome`, que passa a ser o tipo do erro.
 Além delas, `lexico.c` tem algumas variáveis `static`, visíveis só dentro do
 arquivo:
 
-- `entrada`, `linha` e `coluna` — de onde estamos lendo e em que posição;
-- `tabela`, `total_simbolos` e `capacidade_tabela` — a tabela de símbolos;
-- `erros`, `total_erros` e `capacidade_erros` — a lista de erros.
+- `entrada`, `linha` e `coluna`: de onde estamos lendo e em que posição;
+- `tabela`, `total_simbolos` e `capacidade_tabela`: a tabela de símbolos;
+- `erros`, `total_erros` e `capacidade_erros`: a lista de erros.
 
 Elas precisam ser globais do arquivo porque `ProximoToken()` é chamada várias
 vezes, e cada chamada continua de onde a anterior parou.
@@ -87,7 +87,7 @@ nomes de estado.
 
 | Estado | Entra quando lê | O que faz |
 |---|---|---|
-| `E_INICIAL` | — | Pula espaços e quebras de linha e decide pelo primeiro caractere do lexema |
+| `E_INICIAL` | (nenhum) | Pula espaços e quebras de linha e decide pelo primeiro caractere do lexema |
 | `E_COMENTARIO` | `#` | Consome tudo até o fim da linha, sem gerar token |
 | `E_IDENTIFICADOR` | letra ou `_` | Junta letras, dígitos e `_`; no fim consulta a tabela |
 | `E_DIRETIVA` | `.` | Igual, mas compara com as diretivas |
@@ -108,7 +108,7 @@ token direto, porque eles têm um caractere só.
 
 Um lexema termina quando aparece um delimitador: espaço, tabulação, quebra de
 linha, vírgula, dois-pontos, parênteses, aspas, `#` ou o fim do arquivo. O
-estado **não consome** o delimitador, só percebe que o lexema acabou. No
+estado não consome o delimitador, só percebe que o lexema acabou. No
 diagrama isso aparece como `delim*`, e o asterisco quer dizer exatamente isso:
 o caractere fica no arquivo para a próxima chamada.
 
@@ -123,12 +123,12 @@ vezes:
 
 | Chamada | Caminho no AFD | Devolve |
 |---|---|---|
-| 1 | `INICIAL` –l→ `IDENTIFICADOR` –w→ `IDENTIFICADOR`, espaço é delimitador | `<INS_LW, lw> 1 1` |
-| 2 | `INICIAL` pula o espaço –$→ `REGISTRADOR` –t→ –0→, vírgula é delimitador | `<REG, $t0> 1 4` |
+| 1 | `INICIAL` -l→ `IDENTIFICADOR` -w→ `IDENTIFICADOR`, espaço é delimitador | `<INS_LW, lw> 1 1` |
+| 2 | `INICIAL` pula o espaço -$→ `REGISTRADOR` -t→ -0→, vírgula é delimitador | `<REG, $t0> 1 4` |
 | 3 | `INICIAL` lê a vírgula | `<SMB_COM, ,> 1 7` |
-| 4 | `INICIAL` pula o espaço –4→ `DECIMAL`, `(` é delimitador | `<NUM_INT, 4> 1 9` |
+| 4 | `INICIAL` pula o espaço -4→ `DECIMAL`, `(` é delimitador | `<NUM_INT, 4> 1 9` |
 | 5 | `INICIAL` lê o `(` | `<SMB_OPA, (> 1 10` |
-| 6 | `INICIAL` –$→ `REGISTRADOR` –s→ –p→, `)` é delimitador | `<REG, $sp> 1 11` |
+| 6 | `INICIAL` -$→ `REGISTRADOR` -s→ -p→, `)` é delimitador | `<REG, $sp> 1 11` |
 | 7 | `INICIAL` lê o `)` | `<SMB_CPA, )> 1 14` |
 | 8 | `INICIAL` pula o `\n` e encontra o fim do arquivo | `<TK_EOF, EOF> 2 1` |
 

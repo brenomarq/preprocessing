@@ -2,25 +2,15 @@
  main.c
 
  Linguagens Formais, Autômatos e Compiladores
- Etapas 1, 2 e 3 - Pré-processador, analisador léxico e analisador sintático
- da linguagem u-Assembly
+ Etapas 1, 2 e 3 da linguagem u-Assembly
 
  Grupo: Breno Marques, Thiago de Jesus, Roberty Luann e Arthur
 
  Compilação:  gcc main.c preprocessador.c lexico.c sintatico.c -o main.exe
  Execução:    ./main.exe <entrada.asm> <prefixo_saida>
 
- De um prefixo saem seis arquivos. Com "resultado":
-
-   resultado.pre      código normalizado pelo pré-processamento
-   resultado.lex      tokens reconhecidos
-   resultado.ts       tabela de símbolos
-   resultado.lex.err  erros léxicos
-   resultado.sin.err  erros sintáticos
-   resultado.dot      árvore sintática, quando o programa é válido
-
- Este arquivo cuida apenas dos argumentos, dos arquivos e da ordem das
- etapas. As implementações estão em preprocessador.c, lexico.c e sintatico.c.
+ De um prefixo saem seis arquivos: .pre, .lex, .ts, .lex.err, .sin.err e
+ .dot. Aqui só ficam os argumentos, os arquivos e a ordem das etapas.
 */
 
 #include <stdio.h>
@@ -48,8 +38,7 @@ static void montar_nome(const char *prefixo, const char *sufixo, char *destino) 
 }
 
 static FILE *abrir_entrada(const char *arquivo) {
-    /* Modo binário nas duas pontas: no Windows o modo texto converteria as
-       quebras de linha por conta própria, e quem trata isso é ler_linha(). */
+    /* Modo binário: quem trata as quebras de linha é ler_linha(). */
     FILE *entrada = fopen(arquivo, "rb");
 
     if (entrada == NULL) {
@@ -59,8 +48,7 @@ static FILE *abrir_entrada(const char *arquivo) {
 }
 
 static FILE *abrir_saida(const char *arquivo) {
-    /* "wb" trunca o arquivo, então resultados de execuções anteriores não
-       sobrevivem e são confundidos com os atuais. */
+    /* "wb" trunca o arquivo, então saída velha não sobra. */
     FILE *saida = fopen(arquivo, "wb");
 
     if (saida == NULL) {
@@ -69,7 +57,7 @@ static FILE *abrir_saida(const char *arquivo) {
     return saida;
 }
 
-/* Fecha conferindo se a gravação deu certo. Devolve 0 se algo falhou. */
+/* Fecha conferindo se a gravação deu certo. */
 static int fechar_saida(FILE *saida, const char *arquivo) {
     int falhou = ferror(saida);
 
@@ -121,9 +109,8 @@ static int executar_preprocessamento(const char *arquivo_asm, const char *arquiv
 /*
  Etapa 2: .pre -> .lex, .ts e .lex.err
 
- Devolve a quantidade de erros léxicos encontrados, ou -1 se alguma operação
- de arquivo falhar. É por esse retorno que main() descobre se pode seguir
- para a análise sintática.
+ Devolve quantos erros léxicos apareceram, ou -1 se algum arquivo falhar. É
+ por esse número que o main sabe se pode seguir para a etapa 3.
 */
 static int executar_analise_lexica(const char *arquivo_pre, const char *arquivo_lex,
                                    const char *arquivo_ts, const char *arquivo_lex_err) {
@@ -188,8 +175,7 @@ static int executar_analise_sintatica(const char *arquivo_lex, const char *arqui
     FILE *erros;
     int resultado;
 
-    /* O .lex foi fechado depois de gravado e é reaberto aqui, para que a
-       leitura comece do início do arquivo. */
+    /* Reabrimos o .lex para a leitura começar do início. */
     tokens = abrir_entrada(arquivo_lex);
     if (tokens == NULL) {
         return SIN_FALHA;
@@ -221,10 +207,7 @@ static int executar_analise_sintatica(const char *arquivo_lex, const char *arqui
     return resultado;
 }
 
-/*
- Quando existem erros léxicos a etapa 3 não roda, mas os dois arquivos dela
- ainda precisam existir: o .dot vazio e o .sin.err com o motivo.
-*/
+/* Sem a etapa 3, o .dot fica vazio e o .sin.err recebe o motivo. */
 static int registrar_nao_execucao(const char *arquivo_dot, const char *arquivo_sin_err) {
     FILE *arvore;
     FILE *erros;
@@ -268,8 +251,8 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < TOTAL_SAIDAS; i++) {
         montar_nome(argv[2], sufixos[i], saidas[i]);
 
-        /* Abrir uma saída em modo escrita apaga o conteúdo, então nenhuma
-           delas pode ter o nome do arquivo de entrada. */
+        /* Nenhuma saída pode ter o nome da entrada, senão apagaria o
+           código-fonte. */
         if (strcmp(arquivo_asm, saidas[i]) == 0) {
             fprintf(stderr, "Erro: %s\n", mensagem_erro(ERRO_MESMO_ARQUIVO));
             return SAIDA_FALHA;

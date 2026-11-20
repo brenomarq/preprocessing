@@ -18,23 +18,23 @@ Os arquivos `.h` não precisam ir no comando, porque são incluídos pelos `.c`.
 
 O segundo argumento é um **prefixo**, e dele saem seis arquivos:
 
-| Arquivo | Conteúdo |
-|---|---|
-| `resultado.pre` | código normalizado pelo pré-processamento |
-| `resultado.lex` | tokens reconhecidos |
-| `resultado.ts` | tabela de símbolos |
-| `resultado.lex.err` | erros léxicos |
-| `resultado.sin.err` | erros sintáticos |
-| `resultado.dot` | árvore sintática, quando o programa é válido |
+| Arquivo             | Conteúdo                                     |
+| ------------------- | -------------------------------------------- |
+| `resultado.pre`     | código normalizado pelo pré-processamento    |
+| `resultado.lex`     | tokens reconhecidos                          |
+| `resultado.ts`      | tabela de símbolos                           |
+| `resultado.lex.err` | erros léxicos                                |
+| `resultado.sin.err` | erros sintáticos                             |
+| `resultado.dot`     | árvore sintática, quando o programa é válido |
 
-Ao terminar, o programa informa no terminal se o programa é válido, e encerra
-com um destes códigos:
+No fim o programa avisa no terminal se o código é válido e encerra com um
+destes códigos:
 
-| Código | Situação |
-|---|---|
-| 0 | programa sintaticamente válido |
-| 1 | rejeitado por erros léxicos ou sintáticos |
-| 2 | falha operacional ou uso incorreto da linha de comando |
+| Código | Situação                                               |
+| ------ | ------------------------------------------------------ |
+| 0      | programa sintaticamente válido                         |
+| 1      | rejeitado por erros léxicos ou sintáticos              |
+| 2      | falha operacional ou uso incorreto da linha de comando |
 
 Se existirem erros léxicos, a análise sintática não roda: o programa avisa
 `ANÁLISE SINTÁTICA NÃO EXECUTADA: EXISTEM ERROS LÉXICOS.`, deixa o `.dot`
@@ -42,15 +42,17 @@ vazio e registra o motivo no `.sin.err`.
 
 ## Arquivos
 
-- `main.c` — argumentos, abertura dos arquivos e a ordem das etapas.
-- `preprocessador.c` e `preprocessador.h` — etapa 1.
-- `lexico.c` e `lexico.h` — etapa 2.
-- `sintatico.c` e `sintatico.h` — etapa 3.
-- `docs/afd.dot` e `docs/afd.png` — o autômato do analisador léxico.
-- `docs/arvore.png` — uma árvore sintática renderizada pelo Graphviz.
-- `docs/lexico.md` e `docs/sintatico.md` — explicação do código das etapas 2 e 3.
-- `docs/relatorio.md` e `docs/relatorio.pdf` — o relatório técnico da etapa 2.
-- `testes/` — arquivos `.asm` das três etapas.
+- `main.c`: argumentos, abertura dos arquivos e a ordem das etapas.
+- `preprocessador.c` e `preprocessador.h`: etapa 1.
+- `lexico.c` e `lexico.h`: etapa 2.
+- `sintatico.c` e `sintatico.h`: etapa 3.
+- `docs/afd.dot` e `docs/afd.png`: o autômato do analisador léxico.
+- `docs/arvore.png`: uma árvore sintática renderizada pelo Graphviz.
+- `docs/lexico.md` e `docs/sintatico.md`: explicação do código das etapas 2 e 3.
+- `docs/relatorio.md` e `docs/relatorio.pdf`: o relatório técnico da etapa 2.
+- `docs/relatorio-sintatico.md` e `docs/relatorio-sintatico.pdf`: o relatório
+  técnico da etapa 3.
+- `testes/`: arquivos `.asm` das três etapas.
 
 ## Pré-processamento
 
@@ -66,16 +68,16 @@ preservado. Nenhuma validação é feita nessa etapa.
 caractere usando um autômato finito determinístico (diagrama em
 `docs/afd.png`), agrupa os caracteres em lexemas e classifica cada um.
 
-| Categoria | Exemplos de lexema | Token |
-|---|---|---|
-| Diretivas | `.data`, `.word`, `.asciiz` | `DIR_DATA`, `DIR_WORD`, `DIR_ASCIIZ` |
-| Instruções | `li`, `add`, `beq`, `syscall` | `INS_LI`, `INS_ADD`, `INS_BEQ`, `INS_SYSCALL` |
-| Identificadores | `main`, `laco`, `_fim` | `ID` |
-| Registradores | `$t0`, `$sp`, `$31` | `REG` |
-| Números | `10`, `-4`, `0xFF`, `-0x20` | `NUM_INT` |
-| Cadeias | `"Resultado: "` | `STRING` |
-| Símbolos | `,` `:` `(` `)` | `SMB_COM`, `SMB_COL`, `SMB_OPA`, `SMB_CPA` |
-| Fim do arquivo | | `TK_EOF` |
+| Categoria       | Exemplos de lexema            | Token                                         |
+| --------------- | ----------------------------- | --------------------------------------------- |
+| Diretivas       | `.data`, `.word`, `.asciiz`   | `DIR_DATA`, `DIR_WORD`, `DIR_ASCIIZ`          |
+| Instruções      | `li`, `add`, `beq`, `syscall` | `INS_LI`, `INS_ADD`, `INS_BEQ`, `INS_SYSCALL` |
+| Identificadores | `main`, `laco`, `_fim`        | `ID`                                          |
+| Registradores   | `$t0`, `$sp`, `$31`           | `REG`                                         |
+| Números         | `10`, `-4`, `0xFF`, `-0x20`   | `NUM_INT`                                     |
+| Cadeias         | `"Resultado: "`               | `STRING`                                      |
+| Símbolos        | `,` `:` `(` `)`               | `SMB_COM`, `SMB_COL`, `SMB_OPA`, `SMB_CPA`    |
+| Fim do arquivo  |                               | `TK_EOF`                                      |
 
 A tabela de símbolos começa com as 109 palavras reservadas (10 diretivas, 36
 instruções e os registradores) e recebe os identificadores conforme eles
@@ -111,17 +113,17 @@ Linha 4, coluna 9:
 Encontrado REG("$t1"); esperado SMB_COM(",").
 ```
 
-Depois de um erro, o analisador descarta o resto da linha e retoma na linha
-seguinte, preservando a seção ativa. Por isso erros em linhas diferentes são
-todos encontrados na mesma execução. Qualquer erro torna o programa inválido,
-mesmo que a recuperação permita reconhecer o resto.
+Depois de um erro, o analisador joga fora o resto da linha e recomeça na
+linha seguinte, sem perder a seção em que estava. Assim os erros de linhas
+diferentes aparecem todos na mesma execução. Um erro já basta para o programa
+ser inválido, mesmo que o resto seja reconhecido.
 
 ### Árvore sintática
 
-Para programas válidos é gravada a árvore sintática concreta em formato DOT,
+Quando o programa é válido, a árvore sintática concreta é gravada em DOT,
 com `<programa>` na raiz, os não terminais nos nós internos e os terminais nas
-folhas, incluindo `EOL` e `TK_EOF`. Para programas inválidos o `.dot` fica
-vazio, nunca com uma árvore parcial.
+folhas, incluindo `EOL` e `TK_EOF`. Quando é inválido o `.dot` fica vazio, e
+nunca com uma árvore pela metade.
 
 Para gerar a imagem:
 
@@ -135,20 +137,20 @@ Um exemplo pronto está em `docs/arvore.png`.
 
 A pasta `testes/sintatico` tem os casos da etapa 3:
 
-- `valido_1`, `valido_2`, `valido_3` — programas sem erro, cobrindo as três
+- `valido_1`, `valido_2`, `valido_3`: programas sem erro, cobrindo as três
   formas de organização, todas as diretivas e as 36 instruções;
-- `valido_4_limites` — rótulo inexistente e rótulo declarado duas vezes, que
+- `valido_4_limites`: rótulo inexistente e rótulo declarado duas vezes, que
   são válidos nesta etapa;
-- `valido_5_sem_quebra_final` — arquivo sem quebra de linha no fim;
-- `invalido_1_operandos` — operandos ausentes, excedentes, fora de ordem e de
+- `valido_5_sem_quebra_final`: arquivo sem quebra de linha no fim;
+- `invalido_1_operandos`: operandos ausentes, excedentes, fora de ordem e de
   categoria errada, além de token sobrando depois de uma instrução completa;
-- `invalido_2_pontuacao` — vírgula, dois-pontos e parênteses ausentes e lista
+- `invalido_2_pontuacao`: vírgula, dois-pontos e parênteses ausentes e lista
   de inteiros terminada por vírgula;
-- `invalido_3_secoes` — instrução em `.data`, diretiva de dados em `.text` e
+- `invalido_3_secoes`: instrução em `.data`, diretiva de dados em `.text` e
   linha fora de qualquer seção;
-- `invalido_4_recuperacao` — erros em linhas distintas, com as construções
+- `invalido_4_recuperacao`: erros em linhas distintas, com as construções
   seguintes reconhecidas;
-- `invalido_5_vazio` — arquivo vazio, que não tem a seção exigida.
+- `invalido_5_vazio`: arquivo vazio, que não tem a seção exigida.
 
 As pastas `testes/lexico` e `testes/preprocessamento` têm os casos das etapas
 anteriores, que continuam servindo de regressão. Para rodar todos:
@@ -165,18 +167,3 @@ main.exe testes\sintatico\valido_1.asm testes\saida\valido_1
 
 Os outros atalhos são `make` para compilar e `make limpar` para apagar o
 executável e a pasta de saídas.
-
-## Pontos em que o enunciado deixa margem
-
-- **Linha e coluna** são contadas no `.pre`, que é o arquivo que as etapas
-  seguintes leem. Como o pré-processamento tira a indentação e as linhas
-  vazias, elas podem ser diferentes das posições no `.asm` original.
-- **`add:`** é recusado na análise sintática. O léxico classifica `add` como
-  `INS_ADD`, e não como `ID`, então `<linha_codigo>` segue pelo caminho da
-  instrução e o `:` não encaixa em nenhuma produção. O diagnóstico sai como
-  `Encontrado SMB_COL(":"); esperado REG`.
-- **Primeira ocorrência** de um identificador pode ser uma referência: em
-  `.globl main`, `main` já entra na tabela de símbolos com a posição do
-  `.globl`.
-- **O `.sin.err` é sempre gravado**, inclusive quando não há erro nenhum, caso
-  em que contém `Nenhum erro sintático encontrado.`

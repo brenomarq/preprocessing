@@ -1,4 +1,4 @@
-# Relatório técnico — Analisador léxico μ-Assembly
+# Relatório técnico: analisador léxico μ-Assembly
 
 Universidade Católica de Brasília  
 Linguagens Formais, Autômatos e Compiladores - Professor Marcelo Eustáquio
@@ -31,6 +31,9 @@ A compilação e a execução seguem o formato do enunciado:
 gcc main.c preprocessador.c lexico.c -o main.exe
 main.exe teste.asm teste.lex
 ```
+
+(Na etapa 3 essa chamada mudou: o segundo argumento passou a ser um prefixo.
+Veja o relatório daquela etapa.)
 
 A função `main()` valida os argumentos, abre os arquivos e chama
 `PreProcessamento(in, out)` e, em seguida, `AnaliseLexica(in, out)`.
@@ -82,9 +85,9 @@ o reconhecimento e o nome do token são derivados automaticamente.
 O analisador mantém em `lexico.c` um conjunto de variáveis `static`, visíveis
 apenas dentro do arquivo:
 
-- `entrada`, `linha` e `coluna` — o arquivo em leitura e a posição atual;
-- `tabela`, `total_simbolos` e `capacidade_tabela` — a tabela de símbolos;
-- `erros`, `total_erros` e `capacidade_erros` — a lista de erros.
+- `entrada`, `linha` e `coluna`: o arquivo em leitura e a posição atual;
+- `tabela`, `total_simbolos` e `capacidade_tabela`: a tabela de símbolos;
+- `erros`, `total_erros` e `capacidade_erros`: a lista de erros.
 
 Esse estado precisa sobreviver entre chamadas porque `ProximoToken()` é
 chamada repetidamente e cada chamada continua de onde a anterior parou.
@@ -164,7 +167,7 @@ ou se o lexema terminou.
 
 | Estado            | Chega-se nele lendo                    | Função                                                    |
 | ----------------- | -------------------------------------- | --------------------------------------------------------- |
-| `E_INICIAL`       | —                                      | Ignora brancos e decide pelo primeiro caractere do lexema |
+| `E_INICIAL`       | (nenhum)                               | Ignora brancos e decide pelo primeiro caractere do lexema |
 | `E_COMENTARIO`    | `#`                                    | Consome até o fim da linha, sem gerar token               |
 | `E_IDENTIFICADOR` | letra ou `_`                           | Acumula letras, dígitos e `_`                             |
 | `E_DIRETIVA`      | `.`                                    | Acumula e compara com as diretivas                        |
@@ -185,7 +188,7 @@ caractere: o estado inicial já devolve o token correspondente.
 
 Um lexema termina quando aparece um delimitador: espaço, tabulação, quebra de
 linha, vírgula, dois-pontos, parênteses, aspas, `#` ou o fim do arquivo. O
-estado percebe o fim do lexema mas **não consome** o delimitador, que fica
+estado percebe o fim do lexema mas não consome o delimitador, que fica
 disponível para a próxima chamada. No diagrama isso aparece como `delim*`.
 
 Essa decisão é o que permite reconhecer construções como `4($sp)`. O
@@ -514,9 +517,9 @@ As demais 93 entradas correspondem a diretivas, instruções e registradores
 que não foram utilizados por esse programa, e permanecem com linha e coluna
 iguais a zero, conforme o enunciado permite.
 
-Vale observar o símbolo `main`: sua primeira ocorrência é a referência na
-diretiva `.globl main`, na linha 5, coluna 8, e não a declaração `main:` da
-linha 6. A tabela registra a primeira ocorrência, como determinado.
+O símbolo `main` é um caso interessante: a primeira ocorrência dele é a
+referência na diretiva `.globl main`, na linha 5, coluna 8, e não a declaração
+`main:` da linha 6. A tabela registra a primeira ocorrência, como pedido.
 
 ## 11. Decisões tomadas em pontos não fechados pelo enunciado
 

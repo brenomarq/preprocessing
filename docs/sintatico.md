@@ -12,7 +12,7 @@ O `main` executa as três etapas em ordem:
 3. Se não houve erro léxico, `AnaliseSintatica(lex, dot, err)` verifica a
    gramática e grava a árvore e os diagnósticos.
 
-Repare no detalhe da etapa 3: ela **não recebe os tokens em memória**. O
+A etapa 3 tem uma particularidade: ela não recebe os tokens em memória. O
 enunciado fixou a assinatura `int AnaliseSintatica(FILE *tokens, FILE *arvore,
 FILE *erros)`, em que `tokens` é o arquivo `.lex` aberto para leitura. Ou seja,
 o analisador sintático relê o texto que o léxico escreveu.
@@ -31,9 +31,8 @@ Cada linha do `.lex` tem o formato
 <NOME, lexema> linha coluna
 ```
 
-Desmontar isso parece trivial, mas tem uma armadilha: o lexema de uma `STRING`
-pode conter vírgula, espaço e até o próprio `>`. Uma linha perfeitamente
-legítima é
+Separar isso parece simples, mas tem um problema: o lexema de uma `STRING`
+pode ter vírgula, espaço e até o próprio `>` dentro. Uma linha válida é
 
 ```
 <STRING, "a, b> c 3 5"> 2 12
@@ -74,9 +73,9 @@ duplica.
 
 ## 4. A análise descendente recursiva
 
-A ideia é direta: **cada não terminal da gramática vira uma função**. A função
-olha o próximo token para decidir qual alternativa da produção aplicar, chama
-as funções dos não terminais que aparecem na produção e consome os terminais.
+Cada não terminal da gramática vira uma função. Ela olha o próximo token
+para decidir qual alternativa da produção usar, chama as funções dos não
+terminais que aparecem ali e consome os terminais.
 
 Por exemplo, a produção
 
@@ -131,7 +130,7 @@ Os grupos são vetores declarados no começo do arquivo, um para cada `<op_*>`
 da gramática. Para acrescentar uma instrução ao subconjunto, basta incluí-la
 no vetor do grupo certo.
 
-### Um detalhe que é fácil errar
+### Um ponto fácil de errar
 
 A repetição `{ <linha_dados> }` só termina quando aparece `.data`, `.text` ou
 o fim do arquivo. Uma instrução dentro da seção `.data` **não** encerra a
@@ -166,10 +165,10 @@ linha seguinte:
 - se for o `TK_EOF`, não faz nada, porque não há mais linhas;
 - nos outros casos, avança até o `EOL` e o consome.
 
-Em qualquer caso que não seja o fim do arquivo a posição avança pelo menos um
-token. Isso é o que impede o laço infinito repetindo o mesmo diagnóstico, que
-é o bug clássico dessa etapa. Tokens da linha seguinte nunca são descartados,
-então um erro na linha 3 não esconde um erro na linha 5.
+Fora do fim do arquivo a posição sempre avança pelo menos um token, senão a
+análise entraria em laço repetindo o mesmo diagnóstico. Tokens da linha
+seguinte nunca são descartados, então um erro na linha 3 não esconde um erro
+na linha 5.
 
 A seção ativa é preservada: a recuperação acontece dentro do laço de
 `secao_dados()` ou `secao_codigo()`, que continua rodando.
@@ -194,10 +193,9 @@ Os filhos ficam em um vetor que dobra de tamanho quando enche, porque o número
 varia muito: `<rotulo>` tem dois filhos e `<secao_codigo>` tem um por linha do
 programa.
 
-Todo nó criado é registrado em um vetor único, o `criados`. Isso permite
-liberar tudo de uma vez no fim, sem percorrer a árvore e sem se preocupar com
-quem é dono de quem — o que importa porque, quando há erro, pedaços de árvore
-ficam soltos sem pai.
+Todo nó criado também entra em um vetor único, o `criados`, o que deixa a
+gente liberar tudo de uma vez no fim, sem percorrer a árvore. Isso importa
+porque, quando há erro, sobram pedaços de árvore sem pai.
 
 ### A gravação
 
@@ -212,8 +210,8 @@ como `.asciiz "ele disse \"ola\""` quebraria o arquivo DOT.
 ### Programa inválido não tem árvore
 
 O `.dot` só é escrito quando `total_erros == 0`. Para programa inválido o
-arquivo é criado e fica **vazio**, como o enunciado exige — nunca com uma
-árvore parcial. A árvore continua sendo construída durante a análise, mas é
+arquivo é criado e fica **vazio**, como o enunciado exige, e nunca com uma
+árvore pela metade. A árvore continua sendo construída durante a análise, mas é
 simplesmente descartada.
 
 ## 7. Testando uma parte isolada
@@ -239,7 +237,7 @@ int main(void) {
 Isso é útil para testar o `EOL` e o `TK_EOF` em situações que o léxico nunca
 produz, como um `.lex` sem token de fim de arquivo.
 
-## 8. Armadilhas que já estão resolvidas no código
+## 8. Coisas que já estão resolvidas no código
 
 1. **Separar a linha do `.lex` pelo primeiro `>` ou por vírgula.** Quebra em
    qualquer programa que tenha uma string com esses caracteres.
@@ -259,5 +257,5 @@ produz, como um `.lex` sem token de fim de arquivo.
 A árvore sintática é a entrada natural da análise semântica, que vai percorrer
 os mesmos nós para montar a tabela de símbolos definitiva, conferir se os
 rótulos referenciados existem, se algum foi declarado duas vezes e se os
-valores numéricos cabem nos operandos — tudo o que esta etapa deliberadamente
+valores numéricos cabem nos operandos. É tudo o que esta etapa de propósito
 não verifica.

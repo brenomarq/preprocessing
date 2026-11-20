@@ -1,11 +1,9 @@
 /*
  lexico.c
 
- Analisador léxico da linguagem u-Assembly.
-
- Quem faz o trabalho é ProximoToken(), que implementa o AFD: cada valor do
- enum Estado é um estado do diagrama (docs/afd.dot) e cada case do switch
- tem as transições que saem dele.
+ Analisador léxico da linguagem u-Assembly. O trabalho fica em
+ ProximoToken(): cada valor do enum Estado é um estado do AFD
+ (docs/afd.dot) e cada case do switch tem as transições dele.
 */
 
 #include <ctype.h>
@@ -65,7 +63,7 @@ static const char *REGISTRADORES[] = {
     "$gp", "$sp", "$fp", "$ra"
 };
 
-/* Estado que precisa sobreviver entre uma chamada e outra de ProximoToken() */
+/* Estado que sobrevive entre chamadas de ProximoToken() */
 static FILE *entrada = NULL;
 static int linha = 1;
 static int coluna = 1;
@@ -78,18 +76,16 @@ static Token *erros = NULL;
 static int total_erros = 0;
 static int capacidade_erros = 0;
 
-/* AnaliseLexica() é void e não tem como devolver erro, então a falta de
-   memória encerra o programa aqui mesmo, com uma mensagem. */
+/* AnaliseLexica() é void e não devolve erro, então a falta de memória
+   encerra o programa aqui mesmo. */
 static void sem_memoria(void) {
     fprintf(stderr, "Erro: memoria insuficiente durante a analise lexica.\n");
     exit(EXIT_FAILURE);
 }
 
 /*
- espiar() olha o próximo caractere sem consumir; avancar() consome e atualiza
- linha e coluna. Assim cada estado espia, decide, e só consome se o caractere
- fizer parte do lexema. O caractere que encerrou o lexema continua no arquivo
- para a próxima chamada.
+ espiar() olha o próximo caractere sem consumir e avancar() consome. O
+ caractere que encerra o lexema fica no arquivo para a próxima chamada.
 */
 static int espiar(void) {
     int c = fgetc(entrada);
@@ -111,8 +107,8 @@ static int avancar(void) {
     return c;
 }
 
-/* Consome o próximo caractere e acrescenta ao lexema. Se o lexema passar
-   do tamanho do vetor, o resto é lido mas não é guardado. */
+/* Consome o próximo caractere e junta ao lexema. Passando do tamanho do
+   vetor, o resto é lido mas não guardado. */
 static int consumir(Token *t, int *tam) {
     int c = avancar();
 
@@ -131,8 +127,7 @@ static int eh_char_id(int c) {
     return isalnum(c) || c == '_';
 }
 
-/* Caracteres que encerram um lexema. Um estado que encontra um deles sabe
-   que o lexema acabou, mas não consome o delimitador. */
+/* Caracteres que encerram um lexema, sem serem consumidos. */
 static int eh_delimitador(int c) {
     return c == EOF || c == ' ' || c == '\t' || c == '\r' || c == '\n'
         || c == ',' || c == ':' || c == '(' || c == ')'
@@ -199,10 +194,8 @@ static void inserir_simbolo(const char *lexema, const char *categoria, int lin, 
 }
 
 /*
- Procura uma palavra reservada na tabela. A busca é feita em minúsculas
- porque o enunciado manda normalizar instruções, diretivas e registradores,
- então ADD e add são a mesma instrução. Se encontrar, preenche a posição do
- primeiro uso, que até então estava zerada.
+ Procura uma palavra reservada na tabela. A busca é em minúsculas, porque
+ ADD e add são a mesma instrução. Achando, marca a posição do primeiro uso.
 */
 static int reconhecer_reservada(const Token *t, const char *categoria) {
     char minusculo[TAM_LEXEMA];
@@ -223,11 +216,9 @@ static int reconhecer_reservada(const Token *t, const char *categoria) {
 }
 
 /*
- Um lexema formado por letras pode ser instrução ou identificador, e quem
- decide é a tabela de símbolos. Se não for instrução, é ID e entra na
- tabela na primeira vez que aparece, seja na declaração (laco:) ou numa
- referência antecipada (j laco). Identificadores diferenciam maiúsculas de
- minúsculas, então inicio e Inicio viram duas entradas.
+ Um lexema só de letras pode ser instrução ou identificador, e quem decide é
+ a tabela. Não sendo instrução, é ID e entra na tabela na primeira vez que
+ aparece. Aqui maiúsculas contam: inicio e Inicio são duas entradas.
 */
 static void classificar_palavra(Token *t) {
     if (reconhecer_reservada(t, CAT_INSTRUCAO)) {
@@ -255,9 +246,8 @@ static void registrar_erro(const char *tipo, const Token *t) {
     total_erros++;
 }
 
-/* Um número seguido de letra, como 2valor, é tratado como identificador que
-   começou com dígito, que é como o enunciado classifica esse exemplo.
-   Qualquer outro caso (12.5, 0xG1, -3abc) é número malformado. */
+/* 2valor é identificador malformado, como o enunciado classifica. O resto
+   (12.5, 0xG1, -3abc) é número malformado. */
 static const char *erro_de_numero(const Token *t, int c) {
     if (t->lexema[0] != '-' && eh_letra(c)) {
         return "ERRO_IDENTIFICADOR_MALFORMADO";
@@ -266,10 +256,9 @@ static const char *erro_de_numero(const Token *t, int c) {
 }
 
 /*
- A cada volta do laço espiamos o próximo caractere e o estado atual decide se
- consome, se muda de estado ou se o lexema acabou. Terminando bem, devolve o
- token; terminando com erro, guarda o erro e volta ao estado inicial. A análise
- nunca para no primeiro erro, porque o .err precisa ter todos eles.
+ A cada volta espiamos o próximo caractere e o estado decide se consome, se
+ muda de estado ou se o lexema acabou. Dando erro, guarda o erro e volta ao
+ estado inicial: a análise não para no primeiro, o .err precisa de todos.
 */
 Token ProximoToken(void) {
     Estado estado = E_INICIAL;

@@ -2,7 +2,7 @@
  preprocessador.h
 
  Constantes, tipos e protótipos do módulo de pré-processamento.
- A implementacao esta em preprocessador.c.
+ A implementação esta em preprocessador.c.
 */
 
 #ifndef PREPROCESSADOR_H
@@ -39,8 +39,8 @@ int eh_espaco(char c);
    Retorna 1 se removeu algum comentário. */
 int remover_comentario(char *linha);
 
-/* Tira os espaços das pontas e reduz os do meio a um só, sem mexer no que
-   está dentro das aspas. */
+/* Tira os espaços das pontas e reduz os do meio a um só, sem mexer nas
+   aspas. */
 void normalizar_espacos(char *linha);
 
 /* Retorna verdadeiro se a linha não tem nenhum caractere útil. */
@@ -50,13 +50,12 @@ int linha_vazia(const char *linha);
    gravada na saída. */
 int processar_linha(char *linha);
 
-/* Lê uma linha aceitando "\n", "\r\n" e "\r". Devolve memória
-   alocada com malloc, ou NULL no fim do arquivo. */
+/* Lê uma linha aceitando "\n", "\r\n" e "\r". Devolve memória do malloc,
+   ou NULL no fim do arquivo. */
 char *ler_linha(FILE *entrada, int *status);
 
-/* Função pedida no enunciado, chamada pelo main. Lê o arquivo .asm
-   inteiro e grava a versão normalizada em out. Retorna OK ou um dos
-   códigos de erro. */
+/* Função pedida no enunciado. Lê o .asm inteiro e grava a versão
+   normalizada em out. Retorna OK ou um código de erro. */
 int PreProcessamento(FILE *in, FILE *out);
 
 const char *mensagem_erro(int codigo);
